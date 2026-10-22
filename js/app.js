@@ -45,6 +45,14 @@ function levelStatus(crs, level) {
   if (lv(level.id)?.done) return 'done';
   const idx = crs.levels.indexOf(level);
   if (idx === 0) return 'open';
+  // Special units (like the Prueba 1 method) can be started any time; inside them, levels go in order.
+  if (level.unit.key) return level.index === 0 || lv(level.unit.levels[level.index - 1].id)?.done ? 'open' : 'locked';
+  const prev = crs.levels[idx - 1];
+  if (prev.unit.key) {
+    // After a special unit you need both: that unit finished and the previous regular level done.
+    const prevRegular = crs.levels.slice(0, idx).reverse().find((l) => !l.unit.key);
+    return lv(prev.id)?.done && (!prevRegular || lv(prevRegular.id)?.done) ? 'open' : 'locked';
+  }
   return lv(crs.levels[idx - 1].id)?.done ? 'open' : 'locked';
 }
 
@@ -65,6 +73,14 @@ const ctx = {
   awardXp: (xp) => awardXp(xp),
   recordAnswers: (r) => recordAnswers(r),
   rerender: () => renderShell(),
+  openGuide: (u) => openGuide(u),
+  goToUnit: (u) => {
+    state.view = 'learn';
+    state.popover = null;
+    renderPath.scrolled = true;
+    renderShell();
+    setTimeout(() => document.getElementById(u.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  },
 };
 
 /** The unit the student is working on now (first one with an open level). */
@@ -249,7 +265,7 @@ function coachPanelHtml(crs) {
     ? `<p style="margin:10px 0 4px"><b>Tu tarea de hoy:</b></p><ul style="margin:0;padding-left:18px;font-size:14px">${info.todayItems.map((it) => `<li>${esc(it.label)}</li>`).join('')}</ul>`
     : '';
   return `<div class="panel">
-    <h3>Javi te guía <span style="font-size:13px;color:var(--text-soft)">Unidad ${u.index + 1}</span></h3>
+    <h3>Javi te guía <span style="font-size:13px;color:var(--text-soft)">${esc(u.label)}</span></h3>
     ${coachHtml(u)}
     ${todayList}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
@@ -344,7 +360,7 @@ function unitHtml(crs, u, ui, firstOpen) {
   <section class="unit" id="${u.id}">
     <div class="unit-banner" style="--uc:${cMain};--ucd:${cDark}">
       <div>
-        <div class="kicker">Unidad ${ui + 1}${unitDone(u) ? ' · ✔ completada' : ''}</div>
+        <div class="kicker">${esc(u.label)}${unitDone(u) ? ' · ✔ completada' : ''}</div>
         <h2>${esc(u.title)}</h2>
         <div class="desc">${esc(u.desc)}</div>
       </div>
@@ -664,7 +680,7 @@ function startLevel(level) {
         extraHtml: unlockedMission
           ? `<div class="panel" style="width:100%;text-align:left;border-color:#8b5cf6">
               <h3 style="margin-bottom:6px">🧪 ¡Desbloqueaste la misión real!</h3>
-              <p style="margin-bottom:12px">Terminaste la Unidad ${u.index + 1}. Ahora hazla en IntelliJ: <b>${esc(u.mision.title)}</b> (+30 XP).</p>
+              <p style="margin-bottom:12px">Terminaste ${esc(u.label)}. Ahora hazla en IntelliJ: <b>${esc(u.mision.title)}</b> (+30 XP).</p>
               <button class="btn small" style="--c:#8b5cf6;--cd:#6d3fd8" data-result-action="mision">Ver la misión</button></div>`
           : '',
         onAction: (a) => { if (a === 'mision') openMission(u, ctx); },
@@ -703,14 +719,14 @@ function startJump(crs, unitIndex) {
   const before = crs.units.slice(0, unitIndex);
   const pool = before.flatMap((u) => u.levels.flatMap((l) => l.steps.filter((s) => s.t !== 'teoria' && s.t !== 'write')));
   const m = openModal(`
-    <h2>⏩ Saltar a la Unidad ${unitIndex + 1}</h2>
+    <h2>⏩ Saltar a ${esc(crs.units[unitIndex].label)}</h2>
     <p style="color:var(--text-soft)">Responde 10 ejercicios de las unidades anteriores con <b>3 vidas</b>. Si apruebas, se desbloquea todo hasta aquí.</p>
     <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:18px"><button class="btn ghost gray" data-no>Mejor no</button><button class="btn" data-yes>¡Vamos!</button></div>`);
   m.el.querySelector('[data-no]').onclick = m.close;
   m.el.querySelector('[data-yes]').onclick = () => {
     m.close();
     runLesson({
-      title: `Prueba de salto · Unidad ${unitIndex + 1}`,
+      title: `Prueba de salto · ${crs.units[unitIndex].label}`,
       color: PALETTE.yellow,
       steps: shuffle(pool).slice(0, 10),
       hearts: 3,

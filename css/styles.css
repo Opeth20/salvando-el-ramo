@@ -418,6 +418,8 @@ code, pre { font-family: var(--mono); }
 .hint-box ol, .hint-box ul { margin: 4px 0 0; }
 .hint-box .checklist .mark { background: var(--yellow); color: #4b3a00; }
 .hint-area { margin-top: 14px; }
+.hint-box table th, .hint-box table td { border: 1px solid var(--border-strong); padding: 3px 8px; text-align: left; }
+.bubble .hint-box { margin-top: 10px; font-size: 14.5px; }
 .hint-area .link-btn { padding-left: 0; }
 
 /* ============ Plan / countdown ============ */

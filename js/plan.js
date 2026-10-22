@@ -167,7 +167,7 @@ export function openMission(unit, ctx) {
   const ticks = p.missionSteps[m.id] || [];
   const done = missionDone(p, unit);
   const modal = openModal(`
-    <div class="ex-kind new" style="margin-bottom:4px">🧪 Misión real · Unidad ${unit.index + 1} · +30 XP</div>
+    <div class="ex-kind new" style="margin-bottom:4px">🧪 Misión real · ${esc(unit.label)} · +30 XP</div>
     <h2>${esc(m.title)}</h2>
     <p style="color:var(--text-soft);margin:6px 0 0">${md(m.intro)}</p>
     <div class="hint-box" style="border-color:var(--purple);background:transparent">💻 Esto se hace en <b>IntelliJ IDEA</b> (o NetBeans), no aquí. Programar en un IDE real es lo que te piden en la prueba: ¡el error que veas ahí es el que aprendes!</div>
@@ -273,7 +273,7 @@ export function renderPlan(main, ctx) {
   const last = sims[sims.length - 1];
   const dayHtml = (d) => {
     const date = parseDay(d.date);
-    const items = d.items.map((it) => `<li>${esc(it.type === 'level' ? `${it.unit.index + 1}. ${it.unit.title} → ${it.label}` : it.label)}</li>`).join('');
+    const items = d.items.map((it) => `<li>${esc(it.type === 'level' ? `${it.unit.number ? it.unit.number + ". " + it.unit.title : it.unit.label} → ${it.label}` : it.label)}</li>`).join('');
     const extra = d.today && d.doneToday ? `<li class="done">${d.doneToday} ${d.doneToday === 1 ? 'paso completado' : 'pasos completados'} hoy ✔</li>` : '';
     const empty = !items && !extra ? '<li>Día libre: haz un 🏋️ repaso de 5 minutos</li>' : '';
     return `<div class="day ${d.today ? 'today' : ''} ${d.exam ? 'exam' : ''}">
@@ -288,6 +288,19 @@ export function renderPlan(main, ctx) {
       <p class="page-sub">${esc(crs.exam.title)}: <b>${humanDate(crs.exam.date)}</b> · ${esc(crs.exam.scope)}. La materia 3.x (unidad 12) queda para después.</p>
       ${info.status === 'past' ? '<div class="panel"><h3>La prueba ya pasó 🎉</h3><p>Sigue con la unidad 12 (bases de datos) a tu ritmo.</p></div>' : countdownHtml(info).replace('data-nav="plan"', '')}
 
+      ${(() => {
+        const pu = crs.units.find((u) => u.key === 'prueba1');
+        if (!pu) return '';
+        const d = pu.levels.filter((l) => lv(l.id)?.done).length;
+        return `<div class="panel" style="margin-bottom:16px;border-color:var(--yellow)">
+          <h3>📋 Cómo hacer la prueba <span class="status-pill done">${d}/${pu.levels.length} niveles</span></h3>
+          <p style="margin-bottom:12px">El método de tu Prueba 1 (Resumen_Prueba): tabla del enunciado → 5 moldes → tabla de datos → NetBeans y entrega. Léelo antes de cada simulacro.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn yellow small" data-howto>Ver el método</button>
+            <button class="btn ghost small" data-howto-go>Practicarlo</button>
+          </div>
+        </div>`;
+      })()}
       <div class="panel" style="margin-bottom:22px">
         <h3>📝 Simulacro de prueba ${best !== null ? `<span class="status-pill ${best >= 4 ? 'ok' : 'late'}">Mejor nota: ${best.toFixed(1)}</span>` : ''}</h3>
         <p style="margin-bottom:12px">15 ejercicios al azar de toda la materia 1.x y 2.x, un solo intento por pregunta, sin pistas ni vidas. Te da una nota de 1.0 a 7.0.${last ? ` Último: <b>${last.grade.toFixed(1)}</b> (${last.correct}/${last.total}) el ${humanDate(last.at)}.` : ''}</p>
@@ -307,4 +320,9 @@ export function renderPlan(main, ctx) {
       }).join('')}</div>
     </div>`;
   main.querySelector('[data-sim]').onclick = () => startSimulacro(ctx);
+  const pu = crs.units.find((u) => u.key === 'prueba1');
+  const howto = main.querySelector('[data-howto]');
+  if (howto) howto.onclick = () => ctx.openGuide(pu);
+  const go = main.querySelector('[data-howto-go]');
+  if (go) go.onclick = () => ctx.goToUnit(pu);
 }

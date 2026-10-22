@@ -1,6 +1,7 @@
 import poo1 from './content/poo-1.js';
 import poo2 from './content/poo-2.js';
 import poo3 from './content/poo-3.js';
+import prueba1 from './content/poo-prueba.js';
 import { COACH, MISSIONS, EXAM, MATERIAL } from './content/poo-extra.js';
 
 export const PALETTE = {
@@ -15,12 +16,24 @@ export const PALETTE = {
 };
 
 function build(course, { coach = [], missions = [], exam = null, material = [] } = {}) {
+  // Numbered units keep ids poo-u1..poo-u12 even when special units (with a `key`) are inserted between them.
+  let n = 0;
   course.units.forEach((u, ui) => {
-    u.id = `${course.id}-u${ui + 1}`;
+    if (u.key) {
+      u.id = `${course.id}-${u.key}`;
+      u.number = null;
+      u.inExam = !!exam;
+    } else {
+      n++;
+      u.id = `${course.id}-u${n}`;
+      u.number = n;
+      u.label = `Unidad ${n}`;
+      u.coach = coach[n - 1] || null;
+      u.mision = missions[n - 1] || null;
+      u.inExam = !!exam && n <= exam.units;
+    }
+    if (u.mision) u.mision = { ...u.mision, id: `${u.id}-m` };
     u.index = ui;
-    u.coach = coach[ui] || null;
-    u.mision = missions[ui] ? { ...missions[ui], id: `${u.id}-m` } : null;
-    u.inExam = !!exam && ui < exam.units;
     u.levels.forEach((l, li) => {
       l.id = `${u.id}-l${li + 1}`;
       l.index = li;
@@ -29,15 +42,17 @@ function build(course, { coach = [], missions = [], exam = null, material = [] }
     });
   });
   course.levels = course.units.flatMap((u) => u.levels);
+  const examUnits = course.units.filter((u) => u.inExam);
   course.exam = exam && {
     ...exam,
-    levels: course.units.slice(0, exam.units).flatMap((u) => u.levels),
-    units: course.units.slice(0, exam.units),
+    levels: examUnits.flatMap((u) => u.levels),
+    units: examUnits,
   };
+  const numbered = course.units.filter((u) => u.number);
   course.material = material.map((m) => ({
     file: m.file,
-    levels: m.refs.flatMap(([ui, li]) => {
-      const u = course.units[ui - 1];
+    levels: m.refs.flatMap(([ref, li]) => {
+      const u = typeof ref === 'string' ? course.units.find((x) => x.key === ref) : numbered[ref - 1];
       return li ? [u.levels[li - 1]] : u.levels;
     }),
   }));
@@ -52,7 +67,8 @@ export const COURSES = [
     short: 'POO · Java',
     icon: '☕',
     color: 'green',
-    units: [...poo1, ...poo2, ...poo3],
+    // La Prueba 1 va después de "Colecciones y Gestor": usa todo lo de las unidades 4 a 8.
+    units: [...poo1, ...poo2, prueba1, ...poo3],
   }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL }),
 ];
 

@@ -35,7 +35,7 @@ export const MATERIAL = [
   { file: '2.4.1 · Persistencia con JSON', refs: [[11, 1], [11, 4]] },
   { file: '2.4.2 · Capa Repository y DAO', refs: [[11, 2], [11, 3]] },
   { file: '2.4.3 / 2.4.4 · Guía y ejercicios persistencia', refs: [[11]] },
-  { file: 'Resumen de prueba (molde FitLife / Gestor)', refs: [[7, 3], [8]] },
+  { file: 'Resumen_Prueba · tu Prueba 1 (método completo)', refs: [['prueba1'], [7, 3], [8]] },
 ];
 
 export const COACH = [
