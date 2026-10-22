@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Autotest de ejercicios</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; background: #fff; color: #222; }
+    .ok { color: #2b8a00; } .bad { color: #c00; }
+    pre { background: #f4f4f4; padding: 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Autotest de ejercicios</h1>
+  <p>Comprueba que cada solución pasa sus propios requisitos y que cada código "a corregir" realmente falla.</p>
+  <div id="out">Ejecutando…</div>
+  <script type="module">
+    import { COURSES } from '../js/courses.js';
+    import { runChecks, bracketProblem, sameToken, esc } from '../js/code.js';
+
+    const problems = [];
+    let count = 0;
+    for (const course of COURSES) {
+      for (const level of course.levels) {
+        for (const s of level.steps) {
+          count++;
+          const where = `${level.id} · ${level.title} · ${s.t} · ${(s.prompt || s.title || '').slice(0, 70)}`;
+          if (['write', 'fix', 'line'].includes(s.t)) {
+            if (!s.solution) { problems.push([where, 'sin solución']); continue; }
+            const br = s.t !== 'line' && bracketProblem(s.solution);
+            if (br) problems.push([where, 'solución desbalanceada: ' + br]);
+            const failed = runChecks(s.solution, s.checks).filter((r) => !r.ok);
+            if (failed.length) problems.push([where, 'la solución no pasa: ' + failed.map((f) => f.label).join(' | ')]);
+            if (s.starter && runChecks(s.starter, s.checks).every((r) => r.ok)) problems.push([where, 'el código inicial ya pasa todos los requisitos']);
+          }
+          if (s.t === 'fill') {
+            const blanks = [...s.code.matchAll(/\[\[(.+?)\]\]/g)];
+            if (!blanks.length) problems.push([where, 'fill sin espacios']);
+            blanks.forEach((b) => b[1].split('|').forEach((a) => { if (!sameToken(a, a) || !a.trim()) problems.push([where, 'respuesta vacía']); }));
+          }
+          if (s.t === 'output' && !s.answer) problems.push([where, 'output sin respuesta']);
+        }
+      }
+    }
+    const out = document.getElementById('out');
+    out.innerHTML = `<p>${count} pasos revisados en ${COURSES[0].levels.length} niveles.</p>` + (problems.length
+      ? `<h2 class="bad">${problems.length} problemas</h2>` + problems.map(([w, m]) => `<pre class="bad">${esc(w)}\n→ ${esc(m)}</pre>`).join('')
+      : '<h2 class="ok">✔ Todo OK</h2>');
+    window.__selftest = { count, problems };
+  </script>
+</body>
+</html>
