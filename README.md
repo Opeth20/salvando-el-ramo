@@ -1,7 +1,7 @@
 # ☕ Salvando el Ramo
 
 App estilo Duolingo para aprender **DSY1102 · Desarrollo Orientado a Objetos** escribiendo código.
-12 unidades · 37 niveles · ~200 ejercicios basados en la materia oficial (PPTs y guías del ramo).
+12 unidades · 43 niveles · ~190 ejercicios · 12 misiones basados en la materia oficial (PPTs y guías del ramo).
 
 Tipos de ejercicio (todos se responden escribiendo, nunca eligiendo):
 
@@ -13,7 +13,14 @@ Tipos de ejercicio (todos se responden escribiendo, nunca eligiendo):
 | 🐛 Corrige el error | El editor trae código con un bug y lo arreglas |
 | 🖥️ ¿Qué imprime? | Lees el código y escribes la salida exacta de la consola |
 
-Además: vidas ❤️, XP ⚡, racha 🔥, meta diaria, estrellas por nivel, repaso, "Saltar aquí", guía por unidad y logros.
+Además:
+
+- **💡 Pistas progresivas** en cada ejercicio (estructura → requisitos → código con letras ocultas; en "corregir" te dice la línea del error). Usarlas no quita vidas, pero cada 2 pistas cuentan como un error para las estrellas.
+- **📅 Plan hacia la prueba del 4 de noviembre** (material 1.x y 2.x): cuenta regresiva, tarea de cada día que se reacomoda sola, y avance por cada archivo de la plataforma. La unidad 12 (3.x) queda para después.
+- **📝 Simulacro**: 15 ejercicios al azar de toda la materia de la prueba, un intento, sin pistas, con nota de 1.0 a 7.0 (60% de exigencia).
+- **🧪 Misiones reales**: al final de cada unidad, un programa para hacer en IntelliJ/NetBeans; pegas la consola y la página valida la salida (+30 XP).
+- **Javi te guía**: qué enfocarte en cada unidad y qué te pueden preguntar en la prueba.
+- Vidas ❤️, XP ⚡, racha 🔥, meta diaria, estrellas, repaso, "Saltar aquí", guía por unidad y logros.
 
 ## Probar en tu PC
 

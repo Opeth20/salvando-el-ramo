@@ -2,7 +2,8 @@
 import { esc, highlight, runChecks, bracketProblem, sameToken, normalizeOutput } from './code.js';
 import { createEditor } from './editor.js';
 import { mascot, play, confetti } from './fx.js';
-import { md, codeBlock, theoryHtml, openModal } from './ui.js';
+import { md, codeBlock, theoryHtml, openModal, toast } from './ui.js';
+import { hintsFor } from './hints.js';
 
 const PRAISE = ['¡Excelente!', '¡Bien hecho!', '¡Perfecto!', '¡Eso es!', '¡Crack!', '¡Impecable!', '¡Vas volando!', '¡Código limpio!'];
 const OOPS = ['Casi...', 'Uy, no del todo', 'Revisa esto', 'No te rindas', 'Se te escapó algo'];
@@ -139,7 +140,6 @@ function renderEditorStep(step, host, ctx) {
       ${(SNIPPETS[lang] || SNIPPETS.java).map((s) => `<button class="chip" data-snip="${esc(s)}">${esc(s.trim())}</button>`).join('')}
     </div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
-      ${step.hint ? '<button class="link-btn" data-hint>💡 Pista</button>' : ''}
       ${step.t === 'fix' || starter ? '<button class="link-btn" data-reset>↺ Restaurar código</button>' : ''}
       <span class="kbd">Ctrl + Enter para comprobar · Tab para indentar</span>
     </div>
@@ -157,14 +157,11 @@ function renderEditorStep(step, host, ctx) {
       changeCb();
     };
   });
-  const hintBtn = host.querySelector('[data-hint]');
-  if (hintBtn) hintBtn.onclick = () => {
-    if (!host.querySelector('.hint-box')) extra.insertAdjacentHTML('beforebegin', `<div class="hint-box">💡 ${md(step.hint)}</div>`);
-  };
   const resetBtn = host.querySelector('[data-reset]');
   if (resetBtn) resetBtn.onclick = () => { editor.value = starter; editor.setState(null); extra.innerHTML = ''; changeCb(); editor.focus(); };
 
   return {
+    getCode: () => editor.value,
     canCheck: () => !!editor.value.trim(),
     focus: () => {
       editor.focus();
@@ -229,7 +226,14 @@ const RENDERERS = { teoria: renderTeoria, fill: renderFill, line: renderLine, wr
 
 /* ---------------- Runner ---------------- */
 
-export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish, onClose }) {
+
+/**
+ * steps: exercises to run · hearts: lives (ignored in exam mode)
+ * exam: simulacro mode — one attempt per exercise, no hints, no lives, the solution is shown when wrong
+ * onFinish(r) → { xp, stars, grade?, extraHtml? } | null   (r = { passed, mistakes, firstTry, answered, hints, total })
+ */
+export function runLesson(opts) {
+  const { title, color, steps, hearts: maxHearts = 5, exam = false, onFinish, onClose } = opts;
   const root = document.createElement('div');
   root.className = 'lesson';
   root.style.setProperty('--uc', color[0]);
@@ -237,7 +241,9 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
     <div class="lesson-top">
       <button class="icon-btn" data-quit aria-label="Salir">✕</button>
       <div class="bar" title="${esc(title)}"><span style="width:0%;background:var(--green)"></span></div>
-      <div class="hearts"><span class="heart">❤️</span><span class="n">${maxHearts}</span></div>
+      ${exam
+        ? `<div class="hearts" style="color:var(--blue)"><span class="heart">📝</span><span class="n">1/${steps.length}</span></div>`
+        : `<div class="hearts"><span class="heart">❤️</span><span class="n">${maxHearts}</span></div>`}
     </div>
     <div class="lesson-body"><div class="ex"></div></div>
     <div class="lesson-foot"><div class="inner"></div></div>`;
@@ -251,13 +257,14 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
   const $foot = root.querySelector('.lesson-foot');
   const $footInner = $foot.querySelector('.inner');
 
-  let queue = steps.map((s) => ({ step: s, tries: 0, sawSolution: false }));
+  const queue = steps.map((s) => ({ step: s, tries: 0, sawSolution: false }));
   const total = queue.length;
   let completed = 0;
   let hearts = maxHearts;
   let mistakes = 0;
   let firstTry = 0;
   let answered = 0;
+  let hintsUsed = 0;
   let combo = 0;
   let current = null;
   let ctrl = null;
@@ -274,6 +281,7 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
 
   function setProgress() {
     $bar.style.width = `${(completed / total) * 100}%`;
+    if (exam) $hearts.querySelector('.n').textContent = `${Math.min(completed + 1, total)}/${total}`;
   }
 
   function setFoot(stateName, html) {
@@ -282,13 +290,17 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
     $footInner.innerHTML = html;
   }
 
+  function bindPrimary(action) {
+    primaryAction = action;
+    const btn = $footInner.querySelector('[data-primary]');
+    if (btn) btn.onclick = () => primaryAction();
+  }
+
   function footCheck() {
     const isTeoria = ctrl && ctrl.teoria;
     setFoot('check', `<div></div><div class="foot-actions">
       <button class="btn ${isTeoria ? 'blue' : ''}" data-primary ${isTeoria || ctrl.canCheck() ? '' : 'disabled'}>${isTeoria ? '¡Entendido!' : 'Comprobar'}</button></div>`);
-    const btn = $footInner.querySelector('[data-primary]');
-    primaryAction = isTeoria ? next : submit;
-    btn.onclick = () => primaryAction();
+    bindPrimary(isTeoria ? next : submit);
   }
 
   function refreshCheckButton() {
@@ -298,6 +310,29 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
     }
     const btn = $footInner.querySelector('[data-primary]');
     if (btn && !(ctrl && ctrl.teoria)) btn.disabled = !ctrl.canCheck();
+  }
+
+  function setupHints(s) {
+    const area = $ex.querySelector('.hint-area');
+    if (!area) return;
+    const hints = hintsFor(s);
+    if (!hints.length) { area.remove(); return; }
+    const list = area.querySelector('.hint-list');
+    const btn = area.querySelector('[data-hint]');
+    let shown = 0;
+    const label = () => {
+      btn.textContent = shown === 0 ? `💡 Pista (${hints.length} disponibles)` : `💡 Otra pista (${shown}/${hints.length})`;
+      btn.disabled = shown >= hints.length;
+      btn.style.display = shown >= hints.length ? 'none' : '';
+    };
+    btn.onclick = () => {
+      const h = hints[shown++];
+      hintsUsed++;
+      list.insertAdjacentHTML('beforeend', `<div class="hint-box"><b>${h.title}</b><div>${h.html}</div></div>`);
+      label();
+      play('tap');
+    };
+    label();
   }
 
   function showStep() {
@@ -310,7 +345,8 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
       ${s.t === 'teoria'
         ? `<h2>${esc(s.title)}</h2>`
         : `<div class="speech">${mascot(s.t === 'fix' ? 'think' : 'happy')}<div class="bubble prompt">${md(s.prompt)}</div></div>`}
-      <div class="step-host"></div>`;
+      <div class="step-host"></div>
+      ${s.t !== 'teoria' && !exam ? '<div class="hint-area"><div class="hint-list"></div><button class="link-btn" data-hint></button></div>' : ''}`;
     // Re-trigger the entry animation.
     $ex.style.animation = 'none'; void $ex.offsetWidth; $ex.style.animation = '';
     const host = $ex.querySelector('.step-host');
@@ -319,9 +355,29 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
       isChecking: () => footState === 'check',
     });
     ctrl.onChange(refreshCheckButton);
+    setupHints(s);
     footCheck();
     $body.scrollTop = 0;
     setTimeout(() => ctrl.focus(), 60);
+  }
+
+  function copyButtonHtml(s) {
+    return (s.t === 'write' || s.t === 'fix') && ctrl.getCode && (s.lang || 'java') === 'java'
+      ? '<button class="link-btn" data-copy style="padding:6px 0">📋 Copiar mi código para probarlo en IntelliJ</button>'
+      : '';
+  }
+
+  function bindCopy() {
+    const b = $footInner.querySelector('[data-copy]');
+    if (!b) return;
+    b.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(ctrl.getCode());
+        toast('Copiado 📋 Pégalo en IntelliJ y ejecútalo');
+      } catch {
+        toast('No se pudo copiar: selecciona el código y usa Ctrl+C');
+      }
+    };
   }
 
   function submit() {
@@ -330,8 +386,7 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
     if (r.warn) {
       setFoot('warn', `<div class="feedback"><div class="fb-ico">🧐</div><div><h3>¡Ojo!</h3><div class="fb-text">${esc(r.warn)}</div></div></div>
         <div class="foot-actions"><button class="btn yellow" data-primary>Seguir editando</button></div>`);
-      primaryAction = () => { footCheck(); ctrl.focus(); };
-      $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
+      bindPrimary(() => { footCheck(); ctrl.focus(); });
       return;
     }
     if (r.ok) {
@@ -340,14 +395,15 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
       answered++;
       completed++;
       setProgress();
-      if (combo >= 3) showCombo(combo);
+      if (combo >= 3 && !exam) showCombo(combo);
       document.activeElement && document.activeElement.blur && document.activeElement.blur();
       setFoot('ok', `<div class="feedback"><div class="fb-ico">${pick(['🎉', '✨', '🙌', '💪', '🚀'])}</div><div>
           <h3>${pick(PRAISE)}</h3>
-          ${s.explain ? `<div class="fb-text">${md(s.explain)}</div>` : ''}</div></div>
+          ${s.explain ? `<div class="fb-text">${md(s.explain)}</div>` : ''}
+          ${exam ? '' : copyButtonHtml(s)}</div></div>
         <div class="foot-actions"><button class="btn" data-primary>Continuar</button></div>`);
-      primaryAction = next;
-      $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
+      bindPrimary(next);
+      bindCopy();
       return;
     }
     // Wrong answer
@@ -355,6 +411,18 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
     current.tries++;
     mistakes++;
     combo = 0;
+    if (exam) {
+      answered++;
+      completed++;
+      setProgress();
+      document.activeElement && document.activeElement.blur && document.activeElement.blur();
+      setFoot('solution', `<div class="feedback"><div class="fb-ico">📘</div><div style="min-width:0;flex:1">
+          <h3>Incorrecta</h3>
+          <div class="fb-text">${esc(r.message || '')} Así era:${ctrl.solutionHtml()}</div></div></div>
+        <div class="foot-actions"><button class="btn red" data-primary>Continuar</button></div>`);
+      bindPrimary(next);
+      return;
+    }
     hearts = Math.max(0, hearts - 1);
     $hearts.querySelector('.n').textContent = hearts;
     $hearts.classList.remove('hit'); void $hearts.offsetWidth; $hearts.classList.add('hit');
@@ -363,30 +431,32 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
       setFoot('bad', `<div class="feedback"><div class="fb-ico">💔</div><div><h3>Sin vidas</h3><div class="fb-text">${esc(r.message || '')}</div></div></div><div class="foot-actions"></div>`);
       return;
     }
+    const hintBtn = $ex.querySelector('[data-hint]');
+    const nudge = hintBtn && hintBtn.style.display !== 'none' ? ' ¿Te ayudo con una 💡 pista?' : '';
     setFoot('bad', `<div class="feedback"><div class="fb-ico">${pick(['😬', '🤔', '🙈'])}</div><div>
-        <h3>${pick(OOPS)}</h3><div class="fb-text">${esc(r.message || 'Respuesta incorrecta.')}</div></div></div>
+        <h3>${pick(OOPS)}</h3><div class="fb-text">${esc(r.message || 'Respuesta incorrecta.')}${nudge}</div></div></div>
       <div class="foot-actions">
-        <button class="btn ghost gray" data-sol>Ver solución</button>
+        ${nudge ? '<button class="btn ghost" data-hintfoot>💡 Pista</button>' : '<button class="btn ghost gray" data-sol>Ver solución</button>'}
         <button class="btn red" data-primary>Reintentar</button>
       </div>`);
-    primaryAction = () => { footCheck(); ctrl.focus(); };
-    $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
-    $footInner.querySelector('[data-sol]').onclick = showSolution;
+    bindPrimary(() => { footCheck(); ctrl.focus(); });
+    const sol = $footInner.querySelector('[data-sol]');
+    if (sol) sol.onclick = showSolution;
+    const hf = $footInner.querySelector('[data-hintfoot]');
+    if (hf) hf.onclick = () => { hintBtn.click(); footCheck(); hintBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
   }
 
   function showSolution() {
     const s = current.step;
     current.sawSolution = true;
-    setFoot('bad', `<div class="feedback"><div class="fb-ico">📘</div><div style="min-width:0;flex:1">
+    setFoot('solution', `<div class="feedback"><div class="fb-ico">📘</div><div style="min-width:0;flex:1">
         <h3>Solución</h3>
         <div class="fb-text">${s.explain ? md(s.explain) : 'Estúdiala: este ejercicio volverá al final de la lección.'}${ctrl.solutionHtml()}</div></div></div>
       <div class="foot-actions"><button class="btn red" data-primary>Continuar</button></div>`);
-    footState = 'solution';
-    primaryAction = () => {
-      queue.push({ ...current, tries: current.tries });
+    bindPrimary(() => {
+      queue.push({ ...current });
       next(true);
-    };
-    $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
+    });
   }
 
   function showCombo(n) {
@@ -409,41 +479,52 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
   }
 
   function finish() {
-    const result = onFinish ? onFinish({ passed: true, mistakes, firstTry, answered, hearts }) : { xp: 0, stars: 3 };
+    const r = { passed: true, mistakes, firstTry, answered, hints: hintsUsed, total };
+    const result = (onFinish && onFinish(r)) || { xp: 0, stars: 3 };
     play('win');
-    confetti();
+    if (!exam || (result.grade && result.grade >= 4)) confetti();
     const acc = answered ? Math.round((firstTry / answered) * 100) : 100;
+    const time = fmtTime(Date.now() - startedAt);
+    const cards = exam
+      ? `<div class="rcard" style="--c:${result.grade >= 4 ? 'var(--green)' : 'var(--red)'}"><div class="t">Nota</div><div class="v">📝 ${result.grade.toFixed(1)}</div></div>
+         <div class="rcard" style="--c:var(--blue)"><div class="t">Correctas</div><div class="v">✅ ${firstTry}/${answered}</div></div>
+         <div class="rcard" style="--c:var(--yellow)"><div class="t">XP ganada</div><div class="v">⚡ ${result.xp}</div></div>`
+      : `<div class="rcard" style="--c:var(--yellow)"><div class="t">XP ganada</div><div class="v">⚡ ${result.xp}</div></div>
+         <div class="rcard" style="--c:var(--green)"><div class="t">Precisión</div><div class="v">🎯 ${acc}%</div></div>
+         <div class="rcard" style="--c:var(--blue)"><div class="t">Tiempo</div><div class="v">⏱️ ${time}</div></div>`;
+    const heading = exam
+      ? (result.grade >= 6 ? '¡Estás listo para la prueba!' : result.grade >= 4 ? '¡Aprobado! Sigue puliendo' : 'Aún no: repasemos')
+      : (mistakes === 0 && hintsUsed === 0 ? '¡Nivel perfecto!' : '¡Nivel completado!');
     $ex.innerHTML = `
-      <div class="result">
-        ${mascot('happy')}
-        <h1>${mistakes === 0 ? '¡Nivel perfecto!' : '¡Nivel completado!'}</h1>
-        <div class="result-stars">${[1, 2, 3].map((i) => `<span class="${i <= result.stars ? '' : 'off'}">⭐</span>`).join('')}</div>
-        <div class="result-cards">
-          <div class="rcard" style="--c:var(--yellow)"><div class="t">XP ganada</div><div class="v">⚡ ${result.xp}</div></div>
-          <div class="rcard" style="--c:var(--green)"><div class="t">Precisión</div><div class="v">🎯 ${acc}%</div></div>
-          <div class="rcard" style="--c:var(--blue)"><div class="t">Tiempo</div><div class="v">⏱️ ${fmtTime(Date.now() - startedAt)}</div></div>
-        </div>
+      <div class="result ${exam && result.grade < 4 ? 'fail' : ''}">
+        ${mascot(exam && result.grade < 4 ? 'sad' : 'happy')}
+        <h1>${heading}</h1>
+        ${exam ? '' : `<div class="result-stars">${[1, 2, 3].map((i) => `<span class="${i <= result.stars ? '' : 'off'}">⭐</span>`).join('')}</div>`}
+        <div class="result-cards">${cards}</div>
+        ${!exam && hintsUsed ? `<p style="color:var(--text-soft);margin:0">💡 Usaste ${hintsUsed} ${hintsUsed === 1 ? 'pista' : 'pistas'}. ¡Bien por pedir ayuda! La próxima intenta con menos.</p>` : ''}
+        ${result.extraHtml || ''}
       </div>`;
     root.querySelector('.lesson-top').style.visibility = 'hidden';
     setFoot('result', '<div></div><div class="foot-actions"><button class="btn" data-primary>Continuar</button></div>');
-    primaryAction = close;
-    $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
+    bindPrimary(close);
+    $ex.querySelectorAll('[data-result-action]').forEach((b) => {
+      b.onclick = () => { close(); result.onAction && result.onAction(b.dataset.resultAction); };
+    });
   }
 
   function showFail() {
     play('lose');
-    if (onFinish) onFinish({ passed: false, mistakes, firstTry, answered, hearts: 0 });
+    if (onFinish) onFinish({ passed: false, mistakes, firstTry, answered, hints: hintsUsed, total });
     $ex.innerHTML = `
       <div class="result fail">
         ${mascot('sad')}
         <h1>Te quedaste sin vidas</h1>
-        <p style="color:var(--text-soft);font-size:17px;margin:0">Equivocarse es parte de aprender. Repasa la guía de la unidad y vuelve a intentarlo. 💪</p>
+        <p style="color:var(--text-soft);font-size:17px;margin:0">Equivocarse es parte de aprender. Esta vez usa las 💡 pistas antes de responder y repasa la 📖 guía de la unidad. ¡Tú puedes! 💪</p>
       </div>`;
     root.querySelector('.lesson-top').style.visibility = 'hidden';
     setFoot('result', `<div class="foot-actions" style="width:100%;justify-content:space-between">
       <button class="btn ghost gray" data-exit>Salir</button><button class="btn" data-primary>Reintentar</button></div>`);
-    primaryAction = () => { root.remove(); document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; runLesson({ title, color, steps, hearts: maxHearts, onFinish, onClose }); };
-    $footInner.querySelector('[data-primary]').onclick = () => primaryAction();
+    bindPrimary(() => { root.remove(); document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; runLesson(opts); });
     $footInner.querySelector('[data-exit]').onclick = close;
   }
 
@@ -464,10 +545,10 @@ export function runLesson({ title, color, steps, hearts: maxHearts = 5, onFinish
   root.querySelector('[data-quit]').onclick = () => {
     if (footState === 'result') return close();
     const m = openModal(`<div style="text-align:center">${mascot('sad')}<h2 style="padding:0">¡Espera, no te vayas!</h2>
-      <p style="color:var(--text-soft)">Si sales ahora perderás el progreso de esta lección.</p>
+      <p style="color:var(--text-soft)">Si sales ahora perderás el progreso de esta ${exam ? 'prueba' : 'lección'}.</p>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
-        <button class="btn blue" data-stay>Seguir aprendiendo</button>
-        <button class="link-btn" data-leave style="color:var(--red)">Salir de la lección</button></div></div>`);
+        <button class="btn blue" data-stay>Seguir ${exam ? 'respondiendo' : 'aprendiendo'}</button>
+        <button class="link-btn" data-leave style="color:var(--red)">Salir</button></div></div>`);
     m.el.querySelector('.mascot').style.cssText = 'width:110px;height:110px';
     m.el.querySelector('[data-stay]').onclick = m.close;
     m.el.querySelector('[data-leave]').onclick = () => { m.close(); close(); };

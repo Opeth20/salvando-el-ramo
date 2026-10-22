@@ -16,6 +16,8 @@
   <script type="module">
     import { COURSES } from '../js/courses.js';
     import { runChecks, bracketProblem, sameToken, esc } from '../js/code.js';
+    import { hintsFor } from '../js/hints.js';
+    import { checkMission, planInfo } from '../js/plan.js';
 
     const problems = [];
     let count = 0;
@@ -38,8 +40,34 @@
             blanks.forEach((b) => b[1].split('|').forEach((a) => { if (!sameToken(a, a) || !a.trim()) problems.push([where, 'respuesta vacía']); }));
           }
           if (s.t === 'output' && !s.answer) problems.push([where, 'output sin respuesta']);
+          if (s.t !== 'teoria') {
+            try {
+              const hs = hintsFor(s);
+              if (hs.length < 2) problems.push([where, `solo ${hs.length} pista(s)`]);
+              // A hint must never be the full solution.
+              if (s.solution && hs.some((h) => h.html.includes(esc(s.solution)))) problems.push([where, 'una pista muestra la solución completa']);
+            } catch (e) { problems.push([where, 'pistas fallan: ' + e.message]); }
+          }
         }
       }
+      for (const u of course.units) {
+        const m = u.mision;
+        if (!m) { if (u.inExam) problems.push([u.title, 'unidad de la prueba sin misión']); continue; }
+        if (Array.isArray(m.expect)) {
+          const sample = m.expect.map((e) => (e instanceof RegExp ? (e.source.includes('Guardado') ? 'Guardado: Ana' : 'Error: algo') : e)).join('\n');
+          const err = checkMission(m, 'basura previa\n' + sample + '\nfin');
+          if (err) problems.push([`misión ${u.title}`, 'la salida esperada no valida: ' + err]);
+          if (!checkMission(m, 'nada que ver')) problems.push([`misión ${u.title}`, 'valida cualquier cosa']);
+        }
+      }
+      const json = '[{"id":1,"nombre":"Ana","correo":"a@a.cl","edad":20},{"id":2,"nombre":"Luis","correo":"l@l.cl","edad":22}]';
+      const jm = course.units.find((u) => u.mision && u.mision.expect === 'json');
+      if (jm && checkMission(jm.mision, json)) problems.push(['misión JSON', 'no acepta un JSON válido']);
+      if (!course.exam || course.exam.levels.length < 30) problems.push(['plan', 'la prueba no tiene niveles']);
+      const info = planInfo(course, { levels: {}, missions: {} }, '2026-10-22');
+      const planned = info.days.reduce((n, d) => n + d.items.filter((i) => i.type === 'level' || i.type === 'mision').length, 0);
+      if (planned !== info.remaining) problems.push(['plan', `planifica ${planned} de ${info.remaining} pasos`]);
+      if (course.material.some((m) => !m.levels.length || m.levels.some((l) => !l))) problems.push(['material', 'referencia a nivel inexistente']);
     }
     const out = document.getElementById('out');
     out.innerHTML = `<p>${count} pasos revisados en ${COURSES[0].levels.length} niveles.</p>` + (problems.length

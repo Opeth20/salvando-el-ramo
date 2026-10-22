@@ -186,6 +186,81 @@ public void stop() {
 }`,
       }),
     ]),
+
+    level('Ventana en FXML', '🖼️', [
+      teoria('Armar la vista en hello-view.fxml (Guía 2.1.5)',
+        'El proyecto JavaFX de IntelliJ trae 3 archivos clave: **HelloApplication.java** (arranca), **HelloController.java** (eventos) y **hello-view.fxml** (la vista).',
+        c(`<VBox alignment="CENTER" spacing="12.0"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.ejerciciojavafx.HelloController">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+    <Label text="Registro básico de usuario" style="-fx-font-size: 22px;"/>
+    <Label text="Complete los siguientes datos"/>
+    <TextField promptText="Ingrese su nombre" maxWidth="240"/>
+    <CheckBox text="Acepto continuar con el ejercicio"/>
+    <HBox alignment="CENTER" spacing="10.0">
+        <Button text="Guardar"/>
+        <Button text="Limpiar"/>
+    </HBox>
+</VBox>`, 'xml'),
+        c(`// HelloApplication.java: carga el FXML
+FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("hello-view.fxml"));
+Scene scene = new Scene(fxmlLoader.load(), 640, 420);
+stage.setScene(scene);
+stage.show();`),
+        `<ul><li>\`VBox\`: apila en vertical · \`HBox\`: en horizontal · \`spacing\`: separación.</li>
+<li>\`promptText\`: texto guía gris dentro del TextField.</li>
+<li>\`fx:controller\` debe tener el **paquete + clase exactos** del controlador.</li></ul>`),
+      fill('Completa la vista.',
+        `<VBox alignment="[[CENTER]]" spacing="12.0">
+    <Label text="Registro básico de usuario"/>
+    <TextField [[promptText]]="Ingrese su nombre"/>
+    <[[CheckBox]] text="Acepto continuar con el ejercicio"/>
+    <[[HBox]] alignment="CENTER" spacing="10.0">
+        <[[Button]] text="Guardar"/>
+    </HBox>
+</VBox>`, { lang: 'xml' }),
+      line('Escribe el `Label` cuyo texto sea `Complete los siguientes datos`.', {
+        lang: 'xml',
+        checks: [[/^<Label text="Complete los siguientes datos"( [\w-]+="[^"]*")*\/>$/, '<Label text="Complete los siguientes datos"/>']],
+        solution: '<Label text="Complete los siguientes datos"/>',
+      }),
+      write('Escribe un `HBox` centrado con `spacing="10.0"` que contenga dos botones: `Guardar` y `Limpiar`.', {
+        lang: 'xml',
+        starter: '',
+        checks: [
+          [/<HBox( [\w-]+="[^"]*")*>/, 'Abre <HBox ...>'],
+          ['alignment="CENTER"', 'alignment="CENTER"'],
+          ['spacing="10.0"', 'spacing="10.0"'],
+          [/<Button text="Guardar"( [\w-]+="[^"]*")*\/>/, '<Button text="Guardar"/>'],
+          [/<Button text="Limpiar"( [\w-]+="[^"]*")*\/>/, '<Button text="Limpiar"/>'],
+          ['</HBox>', 'Cierra </HBox>'],
+        ],
+        solution: `<HBox alignment="CENTER" spacing="10.0">
+    <Button text="Guardar"/>
+    <Button text="Limpiar"/>
+</HBox>`,
+      }),
+      fill('Así `HelloApplication` carga la vista.',
+        `FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.[[getResource]]("[[hello-view.fxml]]"));
+Scene scene = new Scene(fxmlLoader.[[load]](), 640, 420);`),
+      fix('Error: "ClassNotFoundException: com.example.demo.HelloController". El paquete real es `com.example.ejerciciojavafx`. Corrige el FXML.', {
+        lang: 'xml',
+        starter: `<VBox alignment="CENTER" spacing="12.0"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.demo.HelloController">
+    <Label text="Hola"/>
+</VBox>`,
+        checks: [['fx:controller="com.example.ejerciciojavafx.HelloController"', 'fx:controller="com.example.ejerciciojavafx.HelloController"']],
+        solution: `<VBox alignment="CENTER" spacing="12.0"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.example.ejerciciojavafx.HelloController">
+    <Label text="Hola"/>
+</VBox>`,
+      }),
+    ]),
   ]),
 
   /* ======================= UNIDAD 10 ======================= */
@@ -372,6 +447,172 @@ try {
 }
 lblMensaje.setText("Estudiante guardado correctamente");`,
         'El correo debe contener @', { skipVerify: true, explain: 'La primera validación que falla hace `return`, así que las siguientes ni se revisan.' }),
+    ]),
+
+    level('Controles y eventos', '🎛️', [
+      teoria('ActionEvent, CheckBox, ComboBox y binding (PPT 2.3.1)',
+        c(`@FXML private CheckBox chkAcepto;
+@FXML private ComboBox<String> cmbCarrera;
+@FXML private TextField txtNombre;
+@FXML private Label lblSaludo;
+
+@FXML
+public void initialize() {
+    cmbCarrera.getItems().addAll("Informática", "Electricidad", "Mecánica");
+    // binding: el Label copia solo lo que se escribe en el TextField
+    lblSaludo.textProperty().bind(txtNombre.textProperty());
+}
+
+@FXML
+private void onGuardar(ActionEvent event) {      // el evento del botón
+    if (!chkAcepto.isSelected()) { ... }          // ¿está marcado?
+    String carrera = cmbCarrera.getValue();       // opción elegida (o null)
+}`),
+        `<table><tr><th>Control</th><th>Leer su valor</th></tr>
+<tr><td>\`TextField\`</td><td>\`getText()\`</td></tr>
+<tr><td>\`CheckBox\`</td><td>\`isSelected()\`</td></tr>
+<tr><td>\`ComboBox\`</td><td>\`getValue()\` (null si no eligió)</td></tr>
+<tr><td>\`Label\`</td><td>\`setText(...)\` para mostrar mensajes</td></tr></table>`),
+      fill('Completa el controlador.',
+        `@FXML
+private void onGuardar([[ActionEvent]] event) {
+    if (chkAcepto.[[isSelected]]()) {
+        String carrera = cmbCarrera.[[getValue]]();
+        lblMensaje.[[setText]]("Carrera: " + carrera);
+    }
+}`),
+      line('En `initialize()`, agrega al `cmbCarrera` las opciones `"Informática"` y `"Electricidad"` en una sola línea.', {
+        checks: [[/cmbCarrera\.getItems\(\)\.addAll\("Inform(á|a)tica","Electricidad"\);/, 'cmbCarrera.getItems().addAll("Informática", "Electricidad");']],
+        solution: 'cmbCarrera.getItems().addAll("Informática", "Electricidad");',
+      }),
+      write('En `onGuardar`, si el CheckBox `chkAcepto` **no** está marcado, muestra en `lblMensaje` el texto `Debes aceptar las condiciones` y sal del método.', {
+        starter: `@FXML
+private void onGuardar(ActionEvent event) {
+
+}`,
+        checks: [
+          [['if(!chkAcepto.isSelected()){', 'if(chkAcepto.isSelected()==false){'], 'if (!chkAcepto.isSelected())'],
+          ['lblMensaje.setText("Debes aceptar las condiciones");', 'lblMensaje.setText("Debes aceptar las condiciones");'],
+          ['return;', 'return;'],
+        ],
+        solution: `@FXML
+private void onGuardar(ActionEvent event) {
+    if (!chkAcepto.isSelected()) {
+        lblMensaje.setText("Debes aceptar las condiciones");
+        return;
+    }
+}`,
+      }),
+      line('Haz que `lblVista` muestre automáticamente lo que se escribe en `txtNombre` (binding).', {
+        checks: [['lblVista.textProperty().bind(txtNombre.textProperty());', 'lblVista.textProperty().bind(txtNombre.textProperty());']],
+        solution: 'lblVista.textProperty().bind(txtNombre.textProperty());',
+      }),
+      fix('Si el usuario no elige nada, `getValue()` devuelve `null` y esto revienta con NullPointerException. Agrega la validación antes de usar `carrera`.', {
+        starter: `String carrera = cmbCarrera.getValue();
+if (carrera.equals("Informática")) {
+    lblMensaje.setText("¡Bienvenido a Informática!");
+}`,
+        checks: [
+          [/if\(carrera==null\)\{lblMensaje\.setText\(".+"\);return;\}/, 'if (carrera == null) { lblMensaje.setText("..."); return; }'],
+          [/carrera==null\).*carrera\.equals\(/, 'La validación de null va ANTES del equals'],
+        ],
+        solution: `String carrera = cmbCarrera.getValue();
+if (carrera == null) {
+    lblMensaje.setText("Elige una carrera");
+    return;
+}
+if (carrera.equals("Informática")) {
+    lblMensaje.setText("¡Bienvenido a Informática!");
+}`,
+      }),
+    ]),
+
+    level('Navegación con AppNavigator', '🧭', [
+      teoria('Una clase para cambiar de vista (Guía 2.3.5)',
+        'Para no repetir el mismo código en cada controlador, se centraliza la navegación:',
+        c(`public class AppNavigator {
+    private static Stage mainStage;
+
+    public static void setStage(Stage stage) {
+        mainStage = stage;
+    }
+
+    public static void showView(String fxml, String title) {
+        try {
+            Parent root = FXMLLoader.load(AppNavigator.class.getResource("/view/" + fxml));
+            mainStage.setTitle(title);
+            mainStage.setScene(new Scene(root, 800, 500));
+            mainStage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+// MainApp.start(Stage stage):
+AppNavigator.setStage(stage);
+AppNavigator.showView("lista-view.fxml", "Listado de estudiantes");
+
+// ListaController
+@FXML
+private void abrirFormulario() {
+    AppNavigator.showView("form-view.fxml", "Nuevo estudiante");
+}`),
+        `<table><tr><th>Síntoma</th><th>Causa típica</th></tr>
+<tr><td>La vista no carga</td><td>Ruta o nombre del FXML incorrecto (revisa \`resources\`)</td></tr>
+<tr><td>La tabla sale vacía</td><td>Falta \`setItems(...)\` o el texto del \`PropertyValueFactory\` no coincide con el getter</td></tr>
+<tr><td>El botón no hace nada</td><td>\`onAction="#metodo"\` mal escrito o falta \`@FXML\`</td></tr>
+<tr><td>Campo \`@FXML\` es null</td><td>El \`fx:id\` no coincide con el nombre del atributo</td></tr>
+<tr><td>No vuelve a la lista</td><td>No se llamó a \`AppNavigator.showView(...)\`</td></tr></table>`),
+      fill('Completa `showView`.',
+        `public static void showView(String fxml, String title) {
+    try {
+        Parent root = FXMLLoader.[[load]](AppNavigator.class.getResource("/view/" + fxml));
+        mainStage.[[setTitle]](title);
+        mainStage.[[setScene]](new [[Scene]](root, 800, 500));
+        mainStage.show();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}`),
+      line('En `ListaController.abrirFormulario()`, navega a `form-view.fxml` con el título `Nuevo estudiante`.', {
+        checks: [['AppNavigator.showView("form-view.fxml","Nuevo estudiante");', 'AppNavigator.showView("form-view.fxml", "Nuevo estudiante");']],
+        solution: 'AppNavigator.showView("form-view.fxml", "Nuevo estudiante");',
+      }),
+      write('Escribe en `FormController` el método `volverLista()` (con `@FXML`) que regrese a `lista-view.fxml` con el título `Listado de estudiantes`.', {
+        starter: '',
+        checks: [
+          ['@FXML', 'Anota con @FXML'],
+          [/(private|public) void volverLista\(\)\{/, 'private void volverLista()'],
+          ['AppNavigator.showView("lista-view.fxml","Listado de estudiantes");', 'AppNavigator.showView("lista-view.fxml", "Listado de estudiantes");'],
+        ],
+        solution: `@FXML
+private void volverLista() {
+    AppNavigator.showView("lista-view.fxml", "Listado de estudiantes");
+}`,
+      }),
+      write('Escribe el `start` de `MainApp`: guarda el stage en `AppNavigator` y muestra `lista-view.fxml` con el título `Listado de estudiantes`.', {
+        starter: `@Override
+public void start(Stage stage) {
+
+}`,
+        checks: [
+          ['AppNavigator.setStage(stage);', 'AppNavigator.setStage(stage);'],
+          ['AppNavigator.showView("lista-view.fxml","Listado de estudiantes");', 'AppNavigator.showView("lista-view.fxml", "Listado de estudiantes");'],
+          [/setStage\(stage\);.*showView\(/, 'Primero setStage, después showView'],
+        ],
+        solution: `@Override
+public void start(Stage stage) {
+    AppNavigator.setStage(stage);
+    AppNavigator.showView("lista-view.fxml", "Listado de estudiantes");
+}`,
+      }),
+      fix('"El botón no hace nada". El método del controlador se llama `abrirFormulario`. Corrige el FXML.', {
+        lang: 'xml',
+        starter: `<Button text="Nuevo estudiante" onAction="#abrirFormularo"/>`,
+        checks: [['onAction="#abrirFormulario"', 'onAction="#abrirFormulario"']],
+        solution: `<Button text="Nuevo estudiante" onAction="#abrirFormulario"/>`,
+      }),
     ]),
   ]),
 
@@ -582,6 +823,97 @@ private void guardarJson() {
 private void agregarEjemplo() {
     int nuevoId = repository.getEstudiantes().size() + 1;
     repository.agregar(new Estudiante(nuevoId, "Nuevo estudiante", "nuevo@correo.com", 20));
+}`,
+      }),
+    ]),
+
+    level('FileChooser y errores', '📂', [
+      teoria('Elegir el archivo y no caerse (Ejercicios 2.4.4)',
+        c(`FileChooser chooser = new FileChooser();
+chooser.setTitle("Seleccionar archivo JSON");
+chooser.getExtensionFilters().add(
+        new FileChooser.ExtensionFilter("Archivos JSON", "*.json"));
+
+File archivo = chooser.showOpenDialog(stage);   // o showSaveDialog(stage)
+if (archivo != null) {                           // null = el usuario canceló
+    ...
+}`),
+        `<table><tr><th>Problema</th><th>Cómo responde el DAO</th></tr>
+<tr><td>El archivo no existe</td><td>\`if (!archivo.exists())\` → lista vacía</td></tr>
+<tr><td>El archivo está vacío</td><td>\`archivo.length() == 0\` → lista vacía</td></tr>
+<tr><td>JSON con errores de formato</td><td>\`catch (IOException e)\` → mensaje + lista vacía</td></tr>
+<tr><td>El usuario cancela el diálogo</td><td>\`archivo == null\` → no hacer nada</td></tr></table>`,
+        c(`[
+  { "id": 1, "nombre": "Ana",  "correo": "ana@correo.com",  "edad": 20 },
+  { "id": 2, "nombre": "Luis", "correo": "luis@correo.com", "edad": 22 }
+]`, 'text')),
+      fill('Completa el FileChooser.',
+        `FileChooser chooser = new [[FileChooser]]();
+chooser.getExtensionFilters().add(new FileChooser.[[ExtensionFilter]]("Archivos JSON", "[[*.json]]"));
+File archivo = chooser.[[showOpenDialog]](stage);
+if (archivo [[!=]] null) {
+    repository.cargarDesde(archivo);
+}`),
+      write('Escribe un archivo JSON con una **lista** de 2 estudiantes: Ana (id 1, ana@correo.com, 20) y Luis (id 2, luis@correo.com, 22).', {
+        lang: 'text',
+        starter: '',
+        checks: [
+          [/^\[.*\]$/, 'Es una lista: empieza con [ y termina con ]'],
+          [/\{[^}]*"nombre":"Ana"[^}]*\},\{/, 'Dos objetos { } separados por coma'],
+          [/"id":1[,}]/, 'Ana tiene "id": 1'],
+          [/"nombre":"Luis"/, '"nombre": "Luis"'],
+          [/"correo":"luis@correo\.com"/, '"correo": "luis@correo.com"'],
+          [/"edad":22[,}]/, 'Luis tiene "edad": 22'],
+        ],
+        solution: `[
+  { "id": 1, "nombre": "Ana", "correo": "ana@correo.com", "edad": 20 },
+  { "id": 2, "nombre": "Luis", "correo": "luis@correo.com", "edad": 22 }
+]`,
+      }),
+      write('Mejora `cargar()`: si el archivo **no existe o está vacío** (`length() == 0`), retorna una lista vacía.', {
+        starter: `@Override
+public List<Estudiante> cargar() {
+    try {
+
+        return mapper.readValue(archivo, new TypeReference<List<Estudiante>>(){});
+    } catch (IOException e) {
+        e.printStackTrace();
+        return new ArrayList<>();
+    }
+}`,
+        checks: [
+          [/if\(!archivo\.exists\(\)\|\|archivo\.length\(\)==0\)|if\(archivo\.length\(\)==0\|\|!archivo\.exists\(\)\)/, 'if (!archivo.exists() || archivo.length() == 0)'],
+          [/\|\|archivo\.length\(\)==0\)\{?return new ArrayList<(Estudiante)?>\(\);|exists\(\)\)\{?return new ArrayList<(Estudiante)?>\(\);/, 'Dentro del if: return new ArrayList<>();'],
+        ],
+        solution: `@Override
+public List<Estudiante> cargar() {
+    try {
+        if (!archivo.exists() || archivo.length() == 0) {
+            return new ArrayList<>();
+        }
+        return mapper.readValue(archivo, new TypeReference<List<Estudiante>>(){});
+    } catch (IOException e) {
+        e.printStackTrace();
+        return new ArrayList<>();
+    }
+}`,
+      }),
+      fix('Si el usuario presiona **Cancelar**, `showSaveDialog` devuelve `null` y esto se cae. Agrega la protección.', {
+        starter: `@FXML
+private void guardarComo() {
+    File archivo = chooser.showSaveDialog(stage);
+    repository.guardarEn(archivo);
+}`,
+        checks: [
+          [/if\(archivo==null\)\{?return;|if\(archivo!=null\)\{?repository\.guardarEn\(archivo\);/, 'Revisa que archivo no sea null antes de guardar'],
+        ],
+        solution: `@FXML
+private void guardarComo() {
+    File archivo = chooser.showSaveDialog(stage);
+    if (archivo == null) {
+        return;
+    }
+    repository.guardarEn(archivo);
 }`,
       }),
     ]),

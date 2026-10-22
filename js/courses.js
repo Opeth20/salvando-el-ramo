@@ -1,6 +1,7 @@
 import poo1 from './content/poo-1.js';
 import poo2 from './content/poo-2.js';
 import poo3 from './content/poo-3.js';
+import { COACH, MISSIONS, EXAM, MATERIAL } from './content/poo-extra.js';
 
 export const PALETTE = {
   green: ['#58cc02', '#58a700'],
@@ -13,10 +14,13 @@ export const PALETTE = {
   yellow: ['#ffc800', '#e5a400'],
 };
 
-function build(course) {
+function build(course, { coach = [], missions = [], exam = null, material = [] } = {}) {
   course.units.forEach((u, ui) => {
     u.id = `${course.id}-u${ui + 1}`;
     u.index = ui;
+    u.coach = coach[ui] || null;
+    u.mision = missions[ui] ? { ...missions[ui], id: `${u.id}-m` } : null;
+    u.inExam = !!exam && ui < exam.units;
     u.levels.forEach((l, li) => {
       l.id = `${u.id}-l${li + 1}`;
       l.index = li;
@@ -25,6 +29,18 @@ function build(course) {
     });
   });
   course.levels = course.units.flatMap((u) => u.levels);
+  course.exam = exam && {
+    ...exam,
+    levels: course.units.slice(0, exam.units).flatMap((u) => u.levels),
+    units: course.units.slice(0, exam.units),
+  };
+  course.material = material.map((m) => ({
+    file: m.file,
+    levels: m.refs.flatMap(([ui, li]) => {
+      const u = course.units[ui - 1];
+      return li ? [u.levels[li - 1]] : u.levels;
+    }),
+  }));
   return course;
 }
 
@@ -37,7 +53,7 @@ export const COURSES = [
     icon: '☕',
     color: 'green',
     units: [...poo1, ...poo2, ...poo3],
-  }),
+  }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL }),
 ];
 
 // Ramos del semestre que aún no tienen contenido (inglés y antropología fuera, a pedido).

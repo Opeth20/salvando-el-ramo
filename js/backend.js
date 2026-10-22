@@ -111,7 +111,10 @@ export function emptyProgress() {
     lastDay: null,
     daily: { day: null, xp: 0 },
     dailyGoal: 30,
-    levels: {},      // levelId -> { stars, best, times, perfect }
+    levels: {},      // levelId -> { done, stars, times, at }
+    missions: {},    // missionId -> { at }
+    missionSteps: {},
+    simulacros: [],  // { at, grade, correct, total }
     stats: { exercises: 0, correct: 0, lessons: 0, perfect: 0 },
     sound: true,
     updatedAt: 0,

@@ -7,6 +7,7 @@ import { esc } from './code.js';
 import { mascot, play, setSound } from './fx.js';
 import { theoryHtml, toast, openModal } from './ui.js';
 import { runLesson } from './lesson.js';
+import { planInfo, countdownHtml, coachHtml, openMission, missionDone, renderPlan } from './plan.js';
 
 const $app = document.getElementById('app');
 
@@ -53,6 +54,23 @@ function unitDone(u) {
 
 function save() {
   saveProgress(state.user, state.progress);
+}
+
+/** What plan.js needs from the app. */
+const ctx = {
+  state,
+  course: () => course(),
+  today: () => today(),
+  save: () => save(),
+  awardXp: (xp) => awardXp(xp),
+  recordAnswers: (r) => recordAnswers(r),
+  rerender: () => renderShell(),
+};
+
+/** The unit the student is working on now (first one with an open level). */
+function currentUnit(crs) {
+  const open = crs.levels.find((l) => levelStatus(crs, l) === 'open');
+  return open ? open.unit : crs.units[crs.units.length - 1];
 }
 
 /* ---------------- Login ---------------- */
@@ -137,6 +155,7 @@ function renderLogin(mode = 'login') {
 
 const NAV = [
   { id: 'learn', ico: '🏠', label: 'Aprender' },
+  { id: 'plan', ico: '📅', label: 'Plan' },
   { id: 'review', ico: '🏋️', label: 'Repaso' },
   { id: 'subjects', ico: '📚', label: 'Ramos' },
   { id: 'profile', ico: '👤', label: 'Perfil' },
@@ -216,31 +235,44 @@ function renderRightbar() {
       </div>
       ${next ? `<p style="margin-top:12px">Siguiente: <b>${esc(next.unit.title)}</b> · ${esc(next.title)}</p>` : '<p style="margin-top:12px">¡Terminaste todo! Usa el repaso para no oxidarte.</p>'}
     </div>
-    ${state.user.local ? `<div class="panel"><h3>Tu progreso 💾</h3><p>Se guarda en este navegador. ${firebaseEnabled ? 'Crea una cuenta para guardarlo en la nube.' : 'Para pasarlo al celular u otro PC, usa <b>Perfil → Respaldo</b>.'}</p></div>` : ''}
-    <div class="panel">
-      <h3>Consejo de Javi</h3>
-      <p>${esc(TIPS[(new Date().getDate()) % TIPS.length])}</p>
-    </div>`;
+    ${coachPanelHtml(crs)}
+    ${state.user.local ? `<div class="panel"><h3>Tu progreso 💾</h3><p>Se guarda en este navegador. ${firebaseEnabled ? 'Crea una cuenta para guardarlo en la nube.' : 'Para pasarlo al celular u otro PC, usa <b>Perfil → Respaldo</b>.'}</p></div>` : ''}`;
   rb.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => navigate(b.dataset.nav); });
+  bindUnitActions(rb, crs);
 }
 
-const TIPS = [
-  'Los String se comparan con .equals(), nunca con ==.',
-  'super(...) siempre va en la primera línea del constructor hijo.',
-  'Si un método no es void, todos sus caminos deben terminar en return.',
-  'El constructor no tiene tipo de retorno. Si le pones void, deja de ser constructor.',
-  'Atributos private + getters/setters públicos = encapsulamiento.',
-  'En el Gestor, el "No se encontró" va DESPUÉS del for, no dentro.',
-  'Una clase abstracta no se puede instanciar con new.',
-  'PreparedStatement: los índices de los ? empiezan en 1, no en 0.',
-  'fx:id en el FXML = nombre del atributo @FXML en el controlador.',
-  'Un double se imprime con .0 aunque sea entero: 2500.0',
-];
+function coachPanelHtml(crs) {
+  const u = currentUnit(crs);
+  if (!u || !u.coach) return '';
+  const info = planInfo(crs, state.progress, today());
+  const todayList = info && info.todayItems.length
+    ? `<p style="margin:10px 0 4px"><b>Tu tarea de hoy:</b></p><ul style="margin:0;padding-left:18px;font-size:14px">${info.todayItems.map((it) => `<li>${esc(it.label)}</li>`).join('')}</ul>`
+    : '';
+  return `<div class="panel">
+    <h3>Javi te guía <span style="font-size:13px;color:var(--text-soft)">Unidad ${u.index + 1}</span></h3>
+    ${coachHtml(u)}
+    ${todayList}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn ghost small" data-guide="${u.index}">📖 Guía</button>
+      ${u.mision ? `<button class="btn ghost small" data-mission="${u.index}">🧪 Misión real</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function bindUnitActions(rootEl, crs) {
+  rootEl.querySelectorAll('[data-guide]').forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); openGuide(crs.units[+b.dataset.guide]); };
+  });
+  rootEl.querySelectorAll('[data-mission]').forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); state.popover = null; openMission(crs.units[+b.dataset.mission], ctx); };
+  });
+}
 
 function renderMain() {
   const main = document.getElementById('main');
   if (state.view === 'subjects') return renderSubjects(main);
   if (state.view === 'profile') return renderProfile(main);
+  if (state.view === 'plan') return renderPlan(main, ctx);
   return renderPath(main);
 }
 
@@ -249,7 +281,10 @@ function renderMain() {
 function renderPath(main) {
   const crs = course();
   const firstOpen = crs.levels.find((l) => levelStatus(crs, l) === 'open');
-  main.innerHTML = `<div class="path-wrap">${crs.units.map((u, ui) => unitHtml(crs, u, ui, firstOpen)).join('')}</div>`;
+  const info = planInfo(crs, state.progress, today());
+  main.innerHTML = `${countdownHtml(info)}<div class="path-wrap">${crs.units.map((u, ui) => unitHtml(crs, u, ui, firstOpen)).join('')}</div>`;
+  const cd = main.querySelector('.countdown');
+  if (cd) cd.onclick = (e) => { e.stopPropagation(); navigate('plan'); };
 
   main.querySelectorAll('.node').forEach((n) => {
     n.onclick = (e) => {
@@ -267,9 +302,7 @@ function renderPath(main) {
       startLevel(level);
     };
   });
-  main.querySelectorAll('[data-guide]').forEach((b) => {
-    b.onclick = () => openGuide(crs.units[+b.dataset.guide]);
-  });
+  bindUnitActions(main, crs);
   main.querySelectorAll('[data-jump]').forEach((b) => {
     b.onclick = () => startJump(crs, +b.dataset.jump);
   });
@@ -305,7 +338,7 @@ function unitHtml(crs, u, ui, firstOpen) {
         <div class="node-stars">${st === 'done' ? [1, 2, 3].map((i) => `<span class="${i <= stars ? '' : 'off'}">⭐</span>`).join('') : ''}</div>
         ${pop}
       </div>`;
-  }).join('');
+  }).join('') + missionNodeHtml(u, offsets[u.levels.length % offsets.length] * flip);
   const mascotSide = ui % 2 ? 'left:6%' : 'right:6%';
   return `
   <section class="unit" id="${u.id}">
@@ -327,6 +360,29 @@ function unitHtml(crs, u, ui, firstOpen) {
   </section>`;
 }
 
+function missionNodeHtml(u, x) {
+  if (!u.mision) return '';
+  const id = u.mision.id;
+  const done = missionDone(state.progress, u);
+  const open = unitDone(u);
+  const st = done ? 'done' : open ? 'open' : 'locked';
+  const pop = state.popover === id
+    ? `<div class="popover ${st === 'locked' ? 'locked' : ''}" style="--uc:#8b5cf6">
+        <h4>🧪 ${esc(u.mision.title)}</h4>
+        <p>Misión en IntelliJ · +30 XP. ${st === 'locked' ? 'Se desbloquea al terminar los niveles de la unidad, pero puedes verla desde ya.' : 'Programa esto en un IDE real y valida tu salida aquí.'}</p>
+        <button class="btn" data-mission="${u.index}">${done ? 'Ver de nuevo' : 'Abrir misión'}</button>
+      </div>`
+    : '';
+  return `
+    <div class="node-wrap ${pop ? 'open' : ''}" style="transform:translateX(${x}px)">
+      <button class="node mission ${st === 'locked' ? 'locked' : ''} ${st === 'done' ? 'done' : ''}" data-level="${id}" aria-label="Misión real: ${esc(u.mision.title)}">
+        <span class="node-ico">${done ? '<span class="check">✓</span>' : '🧪'}</span>
+      </button>
+      <div class="node-stars" style="font-size:12px;color:var(--text-soft);font-weight:800">MISIÓN</div>
+      ${pop}
+    </div>`;
+}
+
 function popoverHtml(crs, l, st, color) {
   const exercises = l.steps.filter((s) => s.t !== 'teoria').length;
   const pos = `Nivel ${l.index + 1} de ${l.unit.levels.length}`;
@@ -344,11 +400,14 @@ function popoverHtml(crs, l, st, color) {
 
 function openGuide(u) {
   const items = u.levels.flatMap((l) => l.steps.filter((s) => s.t === 'teoria').map((s) => ({ s, l })));
-  openModal(`
+  const m = openModal(`
     <h2>📖 Guía: ${esc(u.title)}</h2>
-    <p style="color:var(--text-soft);margin:0">Resumen de los conceptos de esta unidad. ¡Úsala como torpedo! 😉</p>
+    <p style="color:var(--text-soft);margin:0 0 14px">Resumen de los conceptos de esta unidad. ¡Úsala como torpedo! 😉</p>
+    ${u.coach ? `<div class="panel">${coachHtml(u)}${u.mision ? `<div style="margin-top:10px"><button class="btn ghost small" data-gm>🧪 Misión real: ${esc(u.mision.title)}</button></div>` : ''}</div>` : ''}
     ${items.map(({ s, l }) => `<div class="guide-item"><h3>${esc(l.title)} — ${esc(s.title)}</h3><div class="theory">${theoryHtml(s)}</div></div>`).join('')}
   `);
+  const gm = m.el.querySelector('[data-gm]');
+  if (gm) gm.onclick = () => { m.close(); openMission(u, ctx); };
 }
 
 /* ---------------- Subjects ---------------- */
@@ -388,6 +447,10 @@ const BADGES = [
   { id: 'u10', ico: '🧩', name: 'MVC Master', desc: 'Termina la unidad 10', test: () => unitDone(course().units[9]) },
   { id: 'u12', ico: '🛡️', name: 'SQL sin miedo', desc: 'Termina la unidad 12', test: () => unitDone(course().units[11]) },
   { id: 'review', ico: '🏋️', name: 'Constante', desc: 'Haz un repaso', test: (p) => (p.stats.reviews || 0) >= 1 },
+  { id: 'mision1', ico: '🧪', name: 'Programador real', desc: 'Completa una misión en IntelliJ', test: (p) => Object.keys(p.missions || {}).length >= 1 },
+  { id: 'mision5', ico: '👩‍💻', name: 'Manos al teclado', desc: 'Completa 5 misiones', test: (p) => Object.keys(p.missions || {}).length >= 5 },
+  { id: 'sim4', ico: '📝', name: 'Aprobado', desc: 'Saca 4.0 o más en un simulacro', test: (p) => (p.simulacros || []).some((s) => s.grade >= 4) },
+  { id: 'sim6', ico: '🎓', name: 'Listo para la prueba', desc: 'Saca 6.0 o más en un simulacro', test: (p) => (p.simulacros || []).some((s) => s.grade >= 6) },
 ];
 
 function renderProfile(main) {
@@ -577,19 +640,35 @@ function startLevel(level) {
     onFinish: (r) => {
       recordAnswers(r);
       if (!r.passed) { save(); return null; }
-      const stars = r.mistakes === 0 ? 3 : r.mistakes <= 2 ? 2 : 1;
-      const xp = replay ? 5 : (level.boss ? 20 : 10) + (r.mistakes === 0 ? 5 : 0);
+      // Every 2 hints count like one mistake for the stars.
+      const slips = r.mistakes + Math.floor(r.hints / 2);
+      const perfect = r.mistakes === 0 && r.hints === 0;
+      const stars = slips === 0 ? 3 : slips <= 2 ? 2 : 1;
+      const xp = replay ? 5 : (level.boss ? 20 : 10) + (perfect ? 5 : 0);
       const prev = lv(level.id) || {};
       state.progress.levels[level.id] = {
         done: true,
         stars: Math.max(prev.stars || 0, stars),
         times: (prev.times || 0) + 1,
+        at: prev.at || today(),
       };
       if (!replay) state.progress.stats.lessons += 1;
-      if (r.mistakes === 0) state.progress.stats.perfect += 1;
+      if (perfect) state.progress.stats.perfect += 1;
       awardXp(xp);
       save();
-      return { xp, stars };
+      const u = level.unit;
+      const unlockedMission = !replay && u.mision && unitDone(u) && !missionDone(state.progress, u);
+      return {
+        xp,
+        stars,
+        extraHtml: unlockedMission
+          ? `<div class="panel" style="width:100%;text-align:left;border-color:#8b5cf6">
+              <h3 style="margin-bottom:6px">🧪 ¡Desbloqueaste la misión real!</h3>
+              <p style="margin-bottom:12px">Terminaste la Unidad ${u.index + 1}. Ahora hazla en IntelliJ: <b>${esc(u.mision.title)}</b> (+30 XP).</p>
+              <button class="btn small" style="--c:#8b5cf6;--cd:#6d3fd8" data-result-action="mision">Ver la misión</button></div>`
+          : '',
+        onAction: (a) => { if (a === 'mision') openMission(u, ctx); },
+      };
     },
     onClose: () => { renderPath.scrolled = false; renderShell(); },
   });

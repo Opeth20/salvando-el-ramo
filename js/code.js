@@ -127,6 +127,10 @@ export function normalizeOutput(s) {
 const JAVA_KW = new Set(('abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try void volatile while var true false null record').split(' '));
 const SQL_KW = new Set(('select from where insert into values update set delete create table database use primary key auto_increment not null int varchar decimal and or order by like drop alter join on as count limit desc asc').split(' '));
 
+export function isKeyword(word) {
+  return JAVA_KW.has(word);
+}
+
 export function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

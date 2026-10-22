@@ -121,7 +121,7 @@ public class Registro {
         char estadoCivil = sc.next().charAt(0);
     }
 }`),
-        '<div class="tip">💡 No existe `nextChar()`: se lee un texto con `next()` y se toma su primer carácter con `charAt(0)`.</div>'),
+        '<div class="tip">💡 No existe `nextChar()`: se lee un texto con `next()` y se toma su primer carácter con `charAt(0)`.</div><div class="warn">⚠️ En un PC con Windows en español, `nextDouble()` espera **coma**: escribe `1,65`. Si escribes `1.65` lanza **InputMismatchException**. (Al imprimir un double, Java siempre usa punto.)</div>'),
       fill('Completa el programa que registra a un usuario.',
         `import java.util.[[Scanner]];
 
@@ -967,6 +967,84 @@ public String toString() {
     return "Persona: " + nombre + ", edad: " + edad;
 }`,
         explain: '`System.out.println(p)` llama automáticamente a `p.toString()`.',
+      }),
+    ]),
+
+    level('Diagramas de clase (UML)', '📐', [
+      teoria('Leer un diagrama de clases',
+        'En la prueba te pueden dar un **diagrama UML** y pedirte la clase en Java. Cada caja tiene 3 partes: **nombre**, **atributos** y **métodos**.',
+        c(`┌───────────────────────────────────────┐
+│            CuentaBancaria             │
+├───────────────────────────────────────┤
+│ - titular: String                     │
+│ - saldo: double                       │
+├───────────────────────────────────────┤
+│ + CuentaBancaria(titular: String)     │
+│ + depositar(monto: double): void      │
+│ + getSaldo(): double                  │
+└───────────────────────────────────────┘`, 'text'),
+        `<table><tr><th>UML</th><th>Java</th></tr>
+<tr><td>\`-\`</td><td>\`private\`</td></tr>
+<tr><td>\`+\`</td><td>\`public\`</td></tr>
+<tr><td>\`#\`</td><td>\`protected\`</td></tr>
+<tr><td>\`- saldo: double\`</td><td>\`private double saldo;\`</td></tr>
+<tr><td>\`+ getSaldo(): double\`</td><td>\`public double getSaldo()\`</td></tr>
+<tr><td>\`+ depositar(monto: double): void\`</td><td>\`public void depositar(double monto)\`</td></tr></table>
+<div class="tip">🔺 Una flecha con triángulo hueco \`Gerente ──▷ Empleado\` significa **herencia**: \`class Gerente extends Empleado\`.</div>
+<div class="warn">⚠️ En UML el tipo va **después** del nombre (\`saldo: double\`). En Java va **antes** (\`double saldo\`).</div>`),
+      fill('Traduce cada línea del diagrama a Java.',
+        `// - saldo: double
+[[private]] double saldo;
+// # color: String
+[[protected]] String color;
+// + getSaldo(): double
+[[public]] [[double]] getSaldo() { return saldo; }`),
+      line('Traduce el atributo UML `- edad: int`', {
+        checks: [['private int edad;', 'private int edad;']],
+        solution: 'private int edad;',
+      }),
+      line('Escribe la firma Java (terminando en `{`) del método UML `+ setNombre(nombre: String): void`', {
+        checks: [['public void setNombre(String nombre){', 'public void setNombre(String nombre) {']],
+        solution: 'public void setNombre(String nombre) {',
+      }),
+      line('El diagrama muestra `Gerente ──▷ Empleado`. Escribe la primera línea de la clase `Gerente`.', {
+        checks: [['public class Gerente extends Empleado{', 'public class Gerente extends Empleado {']],
+        solution: 'public class Gerente extends Empleado {',
+      }),
+      write(`Escribe la clase completa a partir de este diagrama:
+<pre class="code">┌──────────────────────────────────┐
+│             Producto             │
+├──────────────────────────────────┤
+│ - codigo: String                 │
+│ - precio: int                    │
+├──────────────────────────────────┤
+│ + Producto(codigo: String,       │
+│            precio: int)          │
+│ + getPrecio(): int               │
+└──────────────────────────────────┘</pre>`, {
+        starter: '',
+        checks: [
+          ['public class Producto{', 'public class Producto'],
+          ['private String codigo;', '- codigo: String → private String codigo;'],
+          ['private int precio;', '- precio: int → private int precio;'],
+          [/public Producto\(String \w+,int \w+\)\{/, 'Constructor public Producto(String codigo, int precio)'],
+          [/(this\.)?precio=\w+;|setPrecio\(/, 'El constructor guarda el precio'],
+          ['public int getPrecio(){', '+ getPrecio(): int → public int getPrecio()'],
+          [['return precio;', 'return this.precio;'], 'getPrecio retorna precio'],
+        ],
+        solution: `public class Producto {
+    private String codigo;
+    private int precio;
+
+    public Producto(String codigo, int precio) {
+        this.codigo = codigo;
+        this.precio = precio;
+    }
+
+    public int getPrecio() {
+        return precio;
+    }
+}`,
       }),
     ]),
   ]),
