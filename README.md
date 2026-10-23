@@ -16,6 +16,10 @@ Tipos de ejercicio (todos se responden escribiendo, nunca eligiendo):
 Además:
 
 - **⭐ Prueba 1: el método paso a paso**: el Resumen_Prueba convertido en unidad (tabla del enunciado → 5 moldes → tabla de datos → NetBeans y entrega), practicado con un caso nuevo (Clínica PetCare) y los errores que bajan puntos. Está abierta desde el inicio.
+- **🔤 Glosario**: 111 palabras técnicas explicadas en simple. En las lecciones salen subrayadas: pasa el mouse o tócalas para ver qué significan, y cada tarjeta de teoría trae al final sus "palabras clave".
+- **🧠 Para recordar** en cada nivel: una analogía de la vida real, una frase para memorizar y diagramas.
+- **👀 Verlo paso a paso**: los ejemplos se abren en Python Tutor para ver variables y objetos dibujados mientras se ejecuta el código.
+- **📺 Para profundizar**: recursos revisados por unidad en la Guía.
 - **💡 Pistas progresivas** en cada ejercicio (estructura → requisitos → código con letras ocultas; en "corregir" te dice la línea del error). Usarlas no quita vidas, pero cada 2 pistas cuentan como un error para las estrellas.
 - **📅 Plan hacia la prueba del 4 de noviembre** (material 1.x y 2.x): cuenta regresiva, tarea de cada día que se reacomoda sola, y avance por cada archivo de la plataforma. La unidad 12 (3.x) queda para después.
 - **📝 Simulacro**: 15 ejercicios al azar de toda la materia de la prueba, un intento, sin pistas, con nota de 1.0 a 7.0 (60% de exigencia).

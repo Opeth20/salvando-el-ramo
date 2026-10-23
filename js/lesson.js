@@ -2,7 +2,7 @@
 import { esc, highlight, runChecks, bracketProblem, sameToken, normalizeOutput } from './code.js';
 import { createEditor } from './editor.js';
 import { mascot, play, confetti } from './fx.js';
-import { md, codeBlock, theoryHtml, openModal, toast } from './ui.js';
+import { md, codeBlock, theoryHtml, openModal, toast, enrich, tutorButton } from './ui.js';
 import { hintsFor } from './hints.js';
 
 const PRAISE = ['¡Excelente!', '¡Bien hecho!', '¡Perfecto!', '¡Eso es!', '¡Crack!', '¡Impecable!', '¡Vas volando!', '¡Código limpio!'];
@@ -329,6 +329,7 @@ export function runLesson(opts) {
       const h = hints[shown++];
       hintsUsed++;
       list.insertAdjacentHTML('beforeend', `<div class="hint-box"><b>${h.title}</b><div>${h.html}</div></div>`);
+      enrich(list.lastElementChild);
       label();
       play('tap');
     };
@@ -356,6 +357,9 @@ export function runLesson(opts) {
     });
     ctrl.onChange(refreshCheckButton);
     setupHints(s);
+    // Technical words get a tooltip; concept cards also list them at the bottom.
+    if (s.t === 'teoria') enrich(host.querySelector('.theory'), { list: true });
+    else enrich($ex.querySelector('.bubble'));
     footCheck();
     $body.scrollTop = 0;
     setTimeout(() => ctrl.focus(), 60);
@@ -400,10 +404,11 @@ export function runLesson(opts) {
       setFoot('ok', `<div class="feedback"><div class="fb-ico">${pick(['🎉', '✨', '🙌', '💪', '🚀'])}</div><div>
           <h3>${pick(PRAISE)}</h3>
           ${s.explain ? `<div class="fb-text">${md(s.explain)}</div>` : ''}
-          ${exam ? '' : copyButtonHtml(s)}</div></div>
+          ${exam ? '' : copyButtonHtml(s)}${s.t === 'output' ? tutorButton(s.code, 'java', '👀 Mira cómo se ejecuta, paso a paso') : ''}</div></div>
         <div class="foot-actions"><button class="btn" data-primary>Continuar</button></div>`);
       bindPrimary(next);
       bindCopy();
+      enrich($footInner.querySelector('.fb-text'));
       return;
     }
     // Wrong answer
@@ -451,8 +456,9 @@ export function runLesson(opts) {
     current.sawSolution = true;
     setFoot('solution', `<div class="feedback"><div class="fb-ico">📘</div><div style="min-width:0;flex:1">
         <h3>Solución</h3>
-        <div class="fb-text">${s.explain ? md(s.explain) : 'Estúdiala: este ejercicio volverá al final de la lección.'}${ctrl.solutionHtml()}</div></div></div>
+        <div class="fb-text">${s.explain ? md(s.explain) : 'Estúdiala: este ejercicio volverá al final de la lección.'}${ctrl.solutionHtml()}${tutorButton(s.t === 'output' ? s.code : s.solution, s.lang || 'java', '👀 Ver la solución ejecutarse paso a paso')}</div></div></div>
       <div class="foot-actions"><button class="btn red" data-primary>Continuar</button></div>`);
+    enrich($footInner.querySelector('.fb-text'));
     bindPrimary(() => {
       queue.push({ ...current });
       next(true);

@@ -1,7 +1,7 @@
 // Study plan towards the exam, Javi's per-unit guidance, real-IDE missions and the mock exam (simulacro).
 import { esc, highlight } from './code.js';
 import { mascot, play, confetti } from './fx.js';
-import { md, toast, openModal } from './ui.js';
+import { md, toast, openModal, enrich } from './ui.js';
 import { runLesson } from './lesson.js';
 import { PALETTE } from './courses.js';
 
@@ -181,6 +181,7 @@ export function openMission(unit, ctx) {
     <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:10px">
       <button class="btn" data-validate>Validar</button>
     </div>`);
+  enrich(modal.el.querySelector('.mission-steps'));
   modal.el.querySelectorAll('[data-step]').forEach((cb) => {
     cb.onchange = () => {
       const arr = p.missionSteps[m.id] || [];

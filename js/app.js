@@ -5,7 +5,9 @@ import {
 import { COURSES, UPCOMING, PALETTE } from './courses.js';
 import { esc } from './code.js';
 import { mascot, play, setSound } from './fx.js';
-import { theoryHtml, toast, openModal } from './ui.js';
+import { theoryHtml, toast, openModal, enrich } from './ui.js';
+import { installTooltips } from './glossary.js';
+import { GLOSSARY } from './content/glossary.js';
 import { runLesson } from './lesson.js';
 import { planInfo, countdownHtml, coachHtml, openMission, missionDone, renderPlan } from './plan.js';
 
@@ -172,6 +174,7 @@ function renderLogin(mode = 'login') {
 const NAV = [
   { id: 'learn', ico: '🏠', label: 'Aprender' },
   { id: 'plan', ico: '📅', label: 'Plan' },
+  { id: 'glossary', ico: '🔤', label: 'Glosario' },
   { id: 'review', ico: '🏋️', label: 'Repaso' },
   { id: 'subjects', ico: '📚', label: 'Ramos' },
   { id: 'profile', ico: '👤', label: 'Perfil' },
@@ -255,6 +258,7 @@ function renderRightbar() {
     ${state.user.local ? `<div class="panel"><h3>Tu progreso 💾</h3><p>Se guarda en este navegador. ${firebaseEnabled ? 'Crea una cuenta para guardarlo en la nube.' : 'Para pasarlo al celular u otro PC, usa <b>Perfil → Respaldo</b>.'}</p></div>` : ''}`;
   rb.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => navigate(b.dataset.nav); });
   bindUnitActions(rb, crs);
+  enrich(rb.querySelector('.coach'));
 }
 
 function coachPanelHtml(crs) {
@@ -289,6 +293,7 @@ function renderMain() {
   if (state.view === 'subjects') return renderSubjects(main);
   if (state.view === 'profile') return renderProfile(main);
   if (state.view === 'plan') return renderPlan(main, ctx);
+  if (state.view === 'glossary') return renderGlossary(main);
   return renderPath(main);
 }
 
@@ -421,9 +426,43 @@ function openGuide(u) {
     <p style="color:var(--text-soft);margin:0 0 14px">Resumen de los conceptos de esta unidad. ¡Úsala como torpedo! 😉</p>
     ${u.coach ? `<div class="panel">${coachHtml(u)}${u.mision ? `<div style="margin-top:10px"><button class="btn ghost small" data-gm>🧪 Misión real: ${esc(u.mision.title)}</button></div>` : ''}</div>` : ''}
     ${items.map(({ s, l }) => `<div class="guide-item"><h3>${esc(l.title)} — ${esc(s.title)}</h3><div class="theory">${theoryHtml(s)}</div></div>`).join('')}
+    ${linksHtml(u)}
   `);
   const gm = m.el.querySelector('[data-gm]');
   if (gm) gm.onclick = () => { m.close(); openMission(u, ctx); };
+  enrich(m.el.querySelector('.panel'));
+  m.el.querySelectorAll('.guide-item .theory').forEach((t) => enrich(t, { list: true }));
+}
+
+function linksHtml(u) {
+  if (!u.links || !u.links.length) return '';
+  return `<div class="guide-item"><h3>📺 Para profundizar</h3>
+    <p style="color:var(--text-soft);margin:0 0 10px">Si algo no te quedó claro, otra explicación ayuda. Revisados para este tema:</p>
+    <div class="links">${u.links.map((r) => `<a class="link-card" href="${r.url}" target="_blank" rel="noopener"><b>${esc(r.t)}</b><span>${esc(r.why)}</span></a>`).join('')}</div></div>`;
+}
+
+/* ---------------- Glossary ---------------- */
+
+function renderGlossary(main) {
+  const all = GLOSSARY.slice().sort((a, b) => a.t.localeCompare(b.t, 'es', { sensitivity: 'base' }));
+  main.innerHTML = `
+    <div style="max-width:680px;margin:0 auto">
+      <h1 class="page-title">🔤 Glosario</h1>
+      <p class="page-sub">Todas las palabras técnicas del ramo explicadas en simple. En las lecciones aparecen <span class="term" tabindex="0" data-term="clase">subrayadas</span>: pasa el mouse o tócalas para ver qué significan.</p>
+      <input class="field" id="gl-q" placeholder="Buscar: constructor, static, MVC…" autocomplete="off" style="margin-bottom:16px">
+      <dl class="gloss-page" id="gl-list"></dl>
+    </div>`;
+  const list = main.querySelector('#gl-list');
+  const draw = (q = '') => {
+    const n = q.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const rows = all.filter((g) => !n || norm(g.t).includes(n) || g.m.some((f) => norm(f).includes(n)) || norm(g.d).includes(n));
+    list.innerHTML = rows.length
+      ? rows.map((g) => `<div><dt>${esc(g.t)}</dt><dd>${esc(g.d)}</dd></div>`).join('')
+      : '<p style="color:var(--text-soft)">No encontré esa palabra. Prueba con otra forma (por ejemplo "hereda" o "herencia").</p>';
+  };
+  main.querySelector('#gl-q').oninput = (e) => draw(e.target.value);
+  draw();
 }
 
 /* ---------------- Subjects ---------------- */
@@ -761,6 +800,7 @@ async function onUser(user) {
 }
 
 applyTheme();
+installTooltips();
 watchAuth(onUser).catch((e) => {
   console.error(e);
   $app.innerHTML = `<div class="boot"><div class="boot-cup">😵</div><p>No se pudo iniciar: ${esc(e.message || e)}</p></div>`;

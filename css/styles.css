@@ -571,3 +571,59 @@ code, pre { font-family: var(--mono); }
   .popover { width: 260px; }
   .result-cards { flex-direction: column; }
 }
+
+/* ============ Glossary ============ */
+.term {
+  text-decoration: underline dotted var(--blue); text-decoration-thickness: 2px; text-underline-offset: 3px;
+  cursor: help; border-radius: 4px; outline: none;
+}
+.term:hover, .term:focus { background: var(--blue-soft); }
+.gloss-tip {
+  position: fixed; z-index: 200; display: none; background: var(--text); color: var(--bg);
+  border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.45; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25); pointer-events: none; animation: fadeIn .12s;
+}
+.gloss-tip b { display: block; font-size: 15px; font-weight: 900; margin-bottom: 2px; color: var(--yellow); }
+.gloss-list { margin-top: 14px; border-top: 2px dashed var(--border); padding-top: 10px; font-size: 14px; }
+.gloss-list summary { cursor: pointer; font-weight: 900; color: var(--text-soft); }
+.gloss-list dl, .gloss-page { margin: 8px 0 0; display: grid; gap: 6px; }
+.gloss-list dl div, .gloss-page div { display: grid; grid-template-columns: 150px 1fr; gap: 10px; }
+.gloss-list dt, .gloss-page dt { font-weight: 900; color: var(--blue-dark); }
+.gloss-list dd, .gloss-page dd { margin: 0; color: var(--text); font-weight: 600; }
+.gloss-page div { border-bottom: 2px solid var(--border); padding: 10px 0; font-size: 15px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .gloss-list dl div, .gloss-page div { grid-template-columns: 1fr; gap: 2px; }
+}
+
+/* ============ Memo (para recordar) ============ */
+.memo {
+  margin: 14px 0 4px; border: 2px solid var(--purple); border-radius: 16px; padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(206,130,255,.12), rgba(28,176,246,.08));
+}
+.memo-title { font-weight: 900; color: var(--purple-dark); text-transform: uppercase; letter-spacing: .8px; font-size: 13px; margin-bottom: 6px; }
+.memo p { margin: 6px 0; }
+.memo-key { background: var(--card); border-radius: 10px; padding: 8px 10px; }
+.diagram { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.dbox {
+  display: inline-block; border: 2px solid var(--border-strong); background: var(--card); border-radius: 10px;
+  padding: 6px 10px; font-size: 13.5px; text-align: center; line-height: 1.35; font-weight: 700;
+}
+.dbox.main { border-color: var(--blue); background: var(--blue-soft); }
+.dbox.lock { border-color: var(--red); }
+.darrow { color: var(--text-soft); font-weight: 900; font-size: 14px; }
+.nest { border: 2px solid var(--border-strong); border-radius: 12px; padding: 8px 10px; margin: 6px 0 0; background: var(--card); font-size: 13.5px; }
+.nest > span { font-weight: 900; }
+.nest .nest { border-style: dashed; }
+.nest .row { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
+.tutor-btn {
+  display: inline-block; margin: -6px 0 14px; font-size: 13px; font-weight: 900; color: var(--blue);
+  text-decoration: none; text-transform: uppercase; letter-spacing: .5px;
+}
+.tutor-btn:hover { text-decoration: underline; }
+.feedback .tutor-btn { margin: 8px 0 0; }
+.links { display: grid; gap: 10px; }
+.link-card { display: block; border: 2px solid var(--border); border-radius: 14px; padding: 10px 14px; text-decoration: none; color: var(--text); box-shadow: 0 3px 0 var(--border); }
+.link-card:hover { border-color: var(--blue); }
+.link-card b { display: block; color: var(--blue-dark); }
+.link-card span { font-size: 14px; color: var(--text-soft); }

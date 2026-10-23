@@ -440,3 +440,24 @@ public void stop() {
     expect: ['Conexión exitosa a MySQL'],
   },
 ];
+
+// Recursos externos revisados (en español cuando existe una buena opción).
+const R = {
+  tutor: { t: '👀 Python Tutor (Java)', url: 'https://pythontutor.com/java.html', why: 'Pegas tu código y lo ves ejecutarse línea por línea, con dibujos de cada variable y objeto.' },
+  pildoras: { t: '📺 Curso Java desde cero · Píldoras Informáticas', url: 'https://www.youtube.com/playlist?list=PLU8oAlHdN5BktAXdEVCLUYzvDyqRQJ2lk', why: 'Videos cortos en español, uno por tema. Busca en la lista el tema de la unidad.' },
+  aap: { t: '📘 Aprender Java desde cero · aprenderaprogramar.com', url: 'https://www.aprenderaprogramar.com/index.php?option=com_content&view=category&id=68&Itemid=188', why: 'Curso escrito en español con ejemplos y ejercicios (clases, objetos, herencia, interfaces).' },
+  oracle: { t: '📗 Oracle: What Is an Object? (inglés)', url: 'https://docs.oracle.com/javase/tutorial/java/concepts/object.html', why: 'La explicación oficial de objeto, con el ejemplo de la bicicleta.' },
+  ucm: { t: '📄 Herencia y polimorfismo · Universidad Complutense (PDF)', url: 'https://www.fdi.ucm.es/profesor/gmendez/docs/prog0607/Tema4-Herencia.pdf', why: 'Apuntes universitarios en español con muchos ejemplos de extends, super y polimorfismo.' },
+  makery: { t: '📗 Tutorial JavaFX en español · code.makery', url: 'https://code.makery.ch/es/library/javafx-tutorial/', why: 'Una agenda de contactos paso a paso: Scene Builder, MVC y TableView (usa Eclipse, pero el código es el mismo).' },
+  jetbrains: { t: '📗 IntelliJ: proyectos JavaFX (inglés)', url: 'https://www.jetbrains.com/help/idea/javafx.html', why: 'La guía oficial que cita tu Guía 2.1.4 para crear el proyecto.' },
+  jenkov: { t: '📗 Jackson ObjectMapper · Jenkov (inglés)', url: 'https://jenkov.com/java-json/jackson-objectmapper.html', why: 'Ejemplos cortos de readValue y writeValue.' },
+  codejava: { t: '📗 JDBC CRUD con MySQL · CodeJava (inglés)', url: 'https://www.codejava.net/java-se/jdbc/jdbc-tutorial-sql-insert-select-update-and-delete-examples', why: 'INSERT, SELECT, UPDATE y DELETE completos con PreparedStatement.' },
+};
+
+// Por unidad numerada (1–12) y para unidades especiales por su key.
+export const RESOURCES = {
+  1: [R.tutor, R.pildoras, R.aap], 2: [R.oracle, R.tutor, R.aap], 3: [R.tutor, R.pildoras], 4: [R.aap, R.pildoras],
+  5: [R.tutor, R.aap], 6: [R.ucm, R.pildoras], 7: [R.ucm, R.aap], 8: [R.tutor, R.pildoras],
+  9: [R.jetbrains, R.makery], 10: [R.makery], 11: [R.jenkov, R.makery], 12: [R.codejava],
+  prueba1: [R.tutor],
+};

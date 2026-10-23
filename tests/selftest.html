@@ -18,6 +18,8 @@
     import { runChecks, bracketProblem, sameToken, esc } from '../js/code.js';
     import { hintsFor } from '../js/hints.js';
     import { checkMission, planInfo } from '../js/plan.js';
+    import { MEMOS } from '../js/content/poo-memo.js';
+    import { annotate } from '../js/glossary.js';
 
     const problems = [];
     let count = 0;
@@ -68,6 +70,19 @@
       const planned = info.days.reduce((n, d) => n + d.items.filter((i) => i.type === 'level' || i.type === 'mision').length, 0);
       if (planned !== info.remaining) problems.push(['plan', `planifica ${planned} de ${info.remaining} pasos`]);
       if (course.material.some((m) => !m.levels.length || m.levels.some((l) => !l))) problems.push(['material', 'referencia a nivel inexistente']);
+      const ids = new Set(course.levels.map((l) => l.id));
+      Object.keys(MEMOS).forEach((k) => { if (!ids.has(k)) problems.push(['memo', `clave inexistente ${k}`]); });
+      course.levels.forEach((l) => {
+        if (l.unit.key && l.index > 0) return;
+        const card = l.steps.find((s) => s.t === 'teoria');
+        if (!card || !card.parts.some((p) => p && p.memo)) problems.push([l.id + ' · ' + l.title, 'nivel sin "Para recordar"']);
+      });
+      course.units.forEach((u) => { if (!u.links.length) problems.push([u.title, 'unidad sin recursos']); });
+      // The glossary must find terms in normal text and never inside code blocks.
+      const probe = document.createElement('div');
+      probe.innerHTML = '<p>El constructor de la clase usa this.</p><pre class="code">class constructor</pre>';
+      const found = annotate(probe).map((g) => g.t);
+      if (!found.includes('constructor') || !found.includes('clase') || probe.querySelector('pre .term')) problems.push(['glosario', 'anota mal: ' + found.join(',')]);
     }
     const out = document.getElementById('out');
     out.innerHTML = `<p>${count} pasos revisados en ${COURSES[0].levels.length} niveles.</p>` + (problems.length

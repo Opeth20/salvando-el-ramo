@@ -2,7 +2,8 @@ import poo1 from './content/poo-1.js';
 import poo2 from './content/poo-2.js';
 import poo3 from './content/poo-3.js';
 import prueba1 from './content/poo-prueba.js';
-import { COACH, MISSIONS, EXAM, MATERIAL } from './content/poo-extra.js';
+import { COACH, MISSIONS, EXAM, MATERIAL, RESOURCES } from './content/poo-extra.js';
+import { MEMOS } from './content/poo-memo.js';
 
 export const PALETTE = {
   green: ['#58cc02', '#58a700'],
@@ -15,7 +16,7 @@ export const PALETTE = {
   yellow: ['#ffc800', '#e5a400'],
 };
 
-function build(course, { coach = [], missions = [], exam = null, material = [] } = {}) {
+function build(course, { coach = [], missions = [], exam = null, material = [], resources = {}, memos = {} } = {}) {
   // Numbered units keep ids poo-u1..poo-u12 even when special units (with a `key`) are inserted between them.
   let n = 0;
   course.units.forEach((u, ui) => {
@@ -33,12 +34,17 @@ function build(course, { coach = [], missions = [], exam = null, material = [] }
       u.inExam = !!exam && n <= exam.units;
     }
     if (u.mision) u.mision = { ...u.mision, id: `${u.id}-m` };
+    u.links = resources[u.key || u.number] || [];
     u.index = ui;
     u.levels.forEach((l, li) => {
       l.id = `${u.id}-l${li + 1}`;
       l.index = li;
       l.unit = u;
       l.steps.forEach((s, si) => { s.id = `${l.id}-s${si + 1}`; });
+      // "Para recordar" goes at the end of the level's first concept card.
+      const memo = memos[l.id];
+      const card = l.steps.find((s) => s.t === 'teoria');
+      if (memo && card && !card.parts.some((p) => p && p.memo)) card.parts.push({ memo });
     });
   });
   course.levels = course.units.flatMap((u) => u.levels);
@@ -69,7 +75,7 @@ export const COURSES = [
     color: 'green',
     // La Prueba 1 va después de "Colecciones y Gestor": usa todo lo de las unidades 4 a 8.
     units: [...poo1, ...poo2, prueba1, ...poo3],
-  }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL }),
+  }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL, resources: RESOURCES, memos: MEMOS }),
 ];
 
 // Ramos del semestre que aún no tienen contenido (inglés y antropología fuera, a pedido).
