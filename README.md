@@ -15,6 +15,12 @@ Tipos de ejercicio (todos se responden escribiendo, nunca eligiendo):
 
 Además:
 
+- **🔁 Repaso espaciado (cajas de Leitner)**: cada ejercicio respondido vuelve en el "Repaso del día" justo antes de olvidarse (1 → 2 → 4 → 7 días; los errores vuelven al día siguiente), mezclando temas.
+- **📕 Cuaderno de errores** y **🎯 temas más débiles** en el Plan.
+- **🗣️ Explícalo con tus palabras**: 17 ejercicios de autoexplicación que revisan las ideas clave y muestran una respuesta modelo.
+- **"¿Qué tan claro te quedó?"** al final de cada nivel: compara tu confianza con tu resultado y ajusta el repaso.
+- **⏱️ Modo enfoque** (bloques de 15, 25 o 50 min con pausa) y la **rutina diaria** recomendada.
+- **🧠 Por qué funciona**: cada técnica con su nivel de evidencia y fuentes (Dunlosky 2013, Roediger y Karpicke 2006, Cepeda 2008, Metcalfe 2017).
 - **⭐ Prueba 1: el método paso a paso**: el Resumen_Prueba convertido en unidad (tabla del enunciado → 5 moldes → tabla de datos → IntelliJ y entrega), practicado con un caso nuevo (Clínica PetCare) y los errores que bajan puntos. Está abierta desde el inicio.
 - **🔤 Glosario**: 111 palabras técnicas explicadas en simple. En las lecciones salen subrayadas: pasa el mouse o tócalas para ver qué significan, y cada tarjeta de teoría trae al final sus "palabras clave".
 - **🧠 Para recordar** en cada nivel: una analogía de la vida real, una frase para memorizar y diagramas.

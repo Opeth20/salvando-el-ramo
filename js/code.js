@@ -179,3 +179,15 @@ export function highlight(src, lang = 'java') {
   }
   return html;
 }
+
+/* ---------------- Free-text explanations ---------------- */
+
+export function normText(s) {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/** ideas: [[RegExp on normalized text, label]] → [{label, ok}] */
+export function checkIdeas(text, ideas) {
+  const t = normText(text);
+  return ideas.map(([re, label]) => ({ label, ok: re.test(t) }));
+}

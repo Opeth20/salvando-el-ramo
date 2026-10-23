@@ -24,3 +24,7 @@ export const out = (prompt, code, answer, o = {}) => ({ t: 'output', prompt, cod
 
 export const level = (title, icon, steps, o = {}) => ({ title, icon, steps, ...o });
 export const unit = (title, desc, color, levels) => ({ title, desc, color, levels });
+
+// explain – "Explícalo con tus palabras": free text checked for key ideas (Feynman / self-explanation).
+//   ideas: [[/regex sobre texto sin tildes y en minúsculas/, 'idea'], ...] · min: cuántas ideas exigir · model: respuesta modelo
+export const explica = (prompt, o) => ({ t: 'explain', prompt, ...o });

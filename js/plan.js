@@ -4,6 +4,8 @@ import { mascot, play, confetti } from './fx.js';
 import { md, toast, openModal, enrich } from './ui.js';
 import { runLesson } from './lesson.js';
 import { PALETTE } from './courses.js';
+import { dueSteps, mistakeSteps, weakLevels } from './srs.js';
+import { openFocusPicker } from './focus.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -95,7 +97,7 @@ export function planInfo(crs, progress, today) {
   return info;
 }
 
-export function countdownHtml(info) {
+export function countdownHtml(info, due = 0) {
   if (!info || info.status === 'past') return '';
   const pct = Math.round((info.doneCount / info.totalCount) * 100);
   const pill = {
@@ -110,7 +112,7 @@ export function countdownHtml(info) {
     <div class="info">
       <b>📅 ${esc(info.exam.title)} · ${when}</b>
       <p>${info.doneCount} de ${info.totalCount} pasos listos (${pct}%) · ${esc(info.exam.scope)}</p>
-      <div style="display:flex;gap:10px;align-items:center"><div class="bar" style="flex:1;height:12px"><span style="width:${pct}%;background:var(--green)"></span></div>${pill}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><div class="bar" style="flex:1;min-width:90px;height:12px"><span style="width:${pct}%;background:var(--green)"></span></div>${due ? `<span class="status-pill" style="background:var(--blue-soft);color:var(--blue-dark)">🔁 ${due} por repasar</span>` : ''}${pill}</div>
     </div>
   </button>`;
 }
@@ -269,6 +271,9 @@ export function renderPlan(main, ctx) {
   const p = ctx.state.progress;
   const info = planInfo(crs, p, ctx.today());
   if (!info) { main.innerHTML = '<p>Este ramo aún no tiene plan.</p>'; return; }
+  const due = dueSteps(crs, p, ctx.today());
+  const mistakes = mistakeSteps(crs, p);
+  const weak = weakLevels(crs, p);
   const sims = p.simulacros || [];
   const best = sims.length ? Math.max(...sims.map((s) => s.grade)) : null;
   const last = sims[sims.length - 1];
@@ -287,7 +292,13 @@ export function renderPlan(main, ctx) {
     <div style="max-width:680px;margin:0 auto">
       <h1 class="page-title">📅 Plan hacia la prueba</h1>
       <p class="page-sub">${esc(crs.exam.title)}: <b>${humanDate(crs.exam.date)}</b> · ${esc(crs.exam.scope)}. La materia 3.x (unidad 12) queda para después.</p>
-      ${info.status === 'past' ? '<div class="panel"><h3>La prueba ya pasó 🎉</h3><p>Sigue con la unidad 12 (bases de datos) a tu ritmo.</p></div>' : countdownHtml(info).replace('data-nav="plan"', '')}
+      ${info.status === 'past' ? '<div class="panel"><h3>La prueba ya pasó 🎉</h3><p>Sigue con la unidad 12 (bases de datos) a tu ritmo.</p></div>' : countdownHtml(info, due.length).replace('data-nav="plan"', '')}
+      ${routineHtml(info, due.length, mistakes.length)}
+      ${weak.length ? `<div class="panel" style="margin-bottom:16px;border-color:var(--red)">
+        <h3>🎯 Tus temas más débiles</h3>
+        <p style="margin-bottom:10px">Donde más te has equivocado. Repetir estos niveles es el atajo más corto para subir tu nota.</p>
+        ${weak.map((w) => `<div class="material-row"><span class="name">${esc(w.level.unit.label)} · ${esc(w.level.title)}</span><span class="pct" style="width:auto">${Math.round(w.rate * 100)}% errores</span><button class="chip" data-replay="${w.level.id}">Repetir</button></div>`).join('')}
+      </div>` : ''}
 
       ${(() => {
         const pu = crs.units.find((u) => u.key === 'prueba1');
@@ -321,9 +332,74 @@ export function renderPlan(main, ctx) {
       }).join('')}</div>
     </div>`;
   main.querySelector('[data-sim]').onclick = () => startSimulacro(ctx);
+  bindRoutine(main, ctx);
+  main.querySelectorAll('[data-replay]').forEach((b) => {
+    b.onclick = () => ctx.startLevel(crs.levels.find((l) => l.id === b.dataset.replay));
+  });
   const pu = crs.units.find((u) => u.key === 'prueba1');
   const howto = main.querySelector('[data-howto]');
   if (howto) howto.onclick = () => ctx.openGuide(pu);
   const go = main.querySelector('[data-howto-go]');
   if (go) go.onclick = () => ctx.goToUnit(pu);
+}
+
+/* ---------------- Learning routine & the science behind it ---------------- */
+
+export function routineHtml(info, due, mistakes) {
+  const todayNew = info && info.todayItems ? info.todayItems.length : 0;
+  return `<div class="panel" style="margin-bottom:16px;border-color:var(--blue)">
+    <h3>🚀 Tu rutina diaria (≈ 45 min)</h3>
+    <ol class="routine">
+      <li><b>🔁 Repaso del día</b> · 10 min<span>${due ? `Tienes <b>${due}</b> ejercicios que tu memoria está por olvidar.` : 'Hoy no tienes pendientes: ¡al día!'}</span>${due ? '<button class="chip" data-review>Repasar</button>' : ''}</li>
+      <li><b>📈 Lo nuevo del plan</b> · 25 min<span>${todayNew ? `Hoy te tocan <b>${todayNew}</b> pasos (están en "Día a día").` : 'Meta de hoy cumplida ✅'}</span></li>
+      <li><b>🗣️ Cerrar el día</b> · 5 min<span>Repasa tus errores o explica en voz alta lo que aprendiste.</span>${mistakes ? `<button class="chip" data-errors>📕 Errores (${mistakes})</button>` : ''}</li>
+      <li><b>🧪 Misión en IntelliJ</b><span>Cuando termines una unidad: programar en el IDE real es lo que te piden en la prueba.</span></li>
+      <li><b>😴 Dormir bien</b><span>Lo estudiado se consolida durante el sueño. No trasnoches la noche antes de la prueba.</span></li>
+    </ol>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn small" data-focus>⏱️ Modo enfoque</button>
+      <button class="btn ghost small" data-science>🧠 Por qué funciona</button>
+    </div>
+  </div>`;
+}
+
+export function bindRoutine(root, ctx) {
+  root.querySelectorAll('[data-review]').forEach((b) => { b.onclick = () => ctx.startReview(); });
+  root.querySelectorAll('[data-errors]').forEach((b) => { b.onclick = () => ctx.startReview('errors'); });
+  root.querySelectorAll('[data-focus]').forEach((b) => { b.onclick = () => openFocusPicker(); });
+  root.querySelectorAll('[data-science]').forEach((b) => { b.onclick = () => openScience(); });
+}
+
+const SOURCES = {
+  dunlosky: ['Dunlosky et al. (2013): qué técnicas de estudio funcionan (resumen de la APS)', 'https://www.psychologicalscience.org/news/releases/which-study-strategies-make-the-grade.html'],
+  roediger: ['Roediger y Karpicke (2006): Test-Enhanced Learning', 'https://psychology.ecu.edu/wp-content/pv-uploads/sites/216/2019/03/Roediger-Karpicke-2006.pdf'],
+  cepeda: ['Cepeda et al. (2008): Spacing effects in learning', 'https://www.evullab.org/pdf/CepedaVulRohrerWixtedPashler-PS-2008.pdf'],
+  scientists: ['The Learning Scientists: seis estrategias para aprender', 'https://ctl.wustl.edu/learningcenter/?p=767'],
+  metcalfe: ['Metcalfe (2017): Learning from Errors', 'https://wesleyan.edu/ofcd/resources/OFCD Resource Docs/Learning from Errors.pdf'],
+  pomodoro: ['Revisión sobre la técnica Pomodoro (BMC Medical Education, 2025)', 'https://link.springer.com/article/10.1186/s12909-025-08001-0'],
+};
+const src = (k) => `<a href="${encodeURI(SOURCES[k][1])}" target="_blank" rel="noopener">${SOURCES[k][0]}</a>`;
+
+export function openScience() {
+  openModal(`
+    <h2>🧠 Por qué esta página te hace aprender más rápido</h2>
+    <p style="color:var(--text-soft)">No son trucos de motivación: son técnicas medidas en estudios con estudiantes reales. Esto es lo que usa cada parte de la página.</p>
+    <div class="theory" style="padding:0;border:0">
+    <table>
+      <tr><th>Técnica</th><th>Qué es</th><th>Evidencia</th><th>Dónde está aquí</th></tr>
+      <tr><td><b>Practicar recordando</b></td><td>Sacar la respuesta de tu memoria en vez de releer.</td><td>⭐⭐⭐ Alta</td><td>Todos los ejercicios y el simulacro</td></tr>
+      <tr><td><b>Repaso espaciado</b></td><td>Repasar justo cuando empiezas a olvidar, en días distintos.</td><td>⭐⭐⭐ Alta</td><td>🔁 Repaso del día (cajas de Leitner)</td></tr>
+      <tr><td><b>Mezclar temas</b></td><td>Alternar tipos de problema en vez de hacer muchos iguales seguidos.</td><td>⭐⭐ Moderada</td><td>El repaso y el simulacro mezclan unidades</td></tr>
+      <tr><td><b>Explicarte a ti mismo</b></td><td>Decir con tus palabras el "por qué" y el "cómo".</td><td>⭐⭐ Moderada</td><td>🗣️ Explícalo con tus palabras</td></tr>
+      <tr><td><b>Aprender del error</b></td><td>Intentar, equivocarte y recibir la corrección al tiro fija mejor la respuesta correcta.</td><td>⭐⭐ Sólida en laboratorio</td><td>💡 Pistas, solución y 📕 cuaderno de errores</td></tr>
+      <tr><td><b>Ejemplos concretos + dibujos</b></td><td>Unir la idea abstracta con algo real y con una imagen.</td><td>⭐⭐ Recomendada</td><td>🧠 Para recordar, diagramas y 👀 Python Tutor</td></tr>
+      <tr><td><b>Saber lo que sabes</b></td><td>Comparar lo seguro que te sientes con tu resultado real.</td><td>⭐⭐ Mejora con retroalimentación</td><td>"¿Qué tan claro te quedó?" al final de cada nivel</td></tr>
+      <tr><td><b>Pausas planificadas</b></td><td>Bloques sin distracciones con descansos fijos.</td><td>⭐ Mixta</td><td>⏱️ Modo enfoque (opcional)</td></tr>
+    </table>
+    <div class="warn">📉 <b>Lo que menos sirve</b> según la misma revisión: releer apuntes, subrayar y hacer resúmenes. Se sienten productivos, pero se olvidan rápido. En el estudio de Roediger y Karpicke, quienes releían se sentían <i>más</i> seguros, pero días después recordaban <i>menos</i> que quienes se evaluaban.</div>
+    <div class="tip">⏳ <b>¿Por qué repasos tan seguidos?</b> Para una prueba en ~2 semanas, el mejor espacio entre repasos es de pocos días (Cepeda et al.: cerca del 20–40% del tiempo que falta). Por eso las cajas van a 1 → 2 → 4 → 7 días.</div>
+    </div>
+    <h3 style="margin-top:16px">Fuentes</h3>
+    <ul style="font-size:14px;line-height:1.7">${Object.keys(SOURCES).map((k) => `<li>${src(k)}</li>`).join('')}</ul>
+  `);
 }

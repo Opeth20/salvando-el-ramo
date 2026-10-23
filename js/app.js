@@ -9,7 +9,8 @@ import { theoryHtml, toast, openModal, enrich } from './ui.js';
 import { installTooltips } from './glossary.js';
 import { GLOSSARY } from './content/glossary.js';
 import { runLesson } from './lesson.js';
-import { planInfo, countdownHtml, coachHtml, openMission, missionDone, renderPlan } from './plan.js';
+import { recordResults, dueSteps, mistakeSteps, interleave, resetLevel } from './srs.js';
+import { planInfo, countdownHtml, coachHtml, openMission, missionDone, renderPlan, routineHtml, bindRoutine } from './plan.js';
 
 const $app = document.getElementById('app');
 
@@ -76,6 +77,8 @@ const ctx = {
   recordAnswers: (r) => recordAnswers(r),
   rerender: () => renderShell(),
   openGuide: (u) => openGuide(u),
+  startLevel: (l) => startLevel(l),
+  startReview: (mode) => startReview(mode),
   goToUnit: (u) => {
     state.view = 'learn';
     state.popover = null;
@@ -254,11 +257,28 @@ function renderRightbar() {
       </div>
       ${next ? `<p style="margin-top:12px">Siguiente: <b>${esc(next.unit.title)}</b> · ${esc(next.title)}</p>` : '<p style="margin-top:12px">¡Terminaste todo! Usa el repaso para no oxidarte.</p>'}
     </div>
+    ${reviewPanelHtml(crs)}
     ${coachPanelHtml(crs)}
     ${state.user.local ? `<div class="panel"><h3>Tu progreso 💾</h3><p>Se guarda en este navegador. ${firebaseEnabled ? 'Crea una cuenta para guardarlo en la nube.' : 'Para pasarlo al celular u otro PC, usa <b>Perfil → Respaldo</b>.'}</p></div>` : ''}`;
   rb.querySelectorAll('[data-nav]').forEach((b) => { b.onclick = () => navigate(b.dataset.nav); });
   bindUnitActions(rb, crs);
+  bindRoutine(rb, ctx);
   enrich(rb.querySelector('.coach'));
+}
+
+function reviewPanelHtml(crs) {
+  const due = dueSteps(crs, state.progress, today()).length;
+  const errs = mistakeSteps(crs, state.progress).length;
+  if (!due && !errs && !Object.keys(state.progress.srs || {}).length) return '';
+  return `<div class="panel" style="border-color:var(--blue)">
+    <h3>🔁 Repaso del día <span class="status-pill ${due ? 'late' : 'ok'}" ${due ? 'style="background:var(--blue-soft);color:var(--blue-dark)"' : ''}>${due ? `${due} pendientes` : 'al día ✅'}</span></h3>
+    <p>${due ? 'Ejercicios que tu memoria está por olvidar. Repasarlos hoy los deja fijos.' : 'Lo que aprendiste vuelve en unos días para que no se olvide.'}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      ${due ? '<button class="btn small" data-review>Repasar ahora</button>' : ''}
+      ${errs ? `<button class="btn ghost small" data-errors>📕 Errores (${errs})</button>` : ''}
+      <button class="btn ghost small" data-focus>⏱️ Enfoque</button>
+    </div>
+  </div>`;
 }
 
 function coachPanelHtml(crs) {
@@ -303,7 +323,8 @@ function renderPath(main) {
   const crs = course();
   const firstOpen = crs.levels.find((l) => levelStatus(crs, l) === 'open');
   const info = planInfo(crs, state.progress, today());
-  main.innerHTML = `${countdownHtml(info)}<div class="path-wrap">${crs.units.map((u, ui) => unitHtml(crs, u, ui, firstOpen)).join('')}</div>`;
+  const due = dueSteps(crs, state.progress, today()).length;
+  main.innerHTML = `${countdownHtml(info, due)}<div class="path-wrap">${crs.units.map((u, ui) => unitHtml(crs, u, ui, firstOpen)).join('')}</div>`;
   const cd = main.querySelector('.countdown');
   if (cd) cd.onclick = (e) => { e.stopPropagation(); navigate('plan'); };
 
@@ -683,6 +704,8 @@ function recordAnswers(r) {
   const s = state.progress.stats;
   s.exercises += r.answered;
   s.correct += r.firstTry;
+  // Every answered exercise enters the spaced-repetition boxes.
+  if (r.results) recordResults(state.progress, r.results, today());
 }
 
 function startLevel(level) {
@@ -723,23 +746,53 @@ function startLevel(level) {
               <button class="btn small" style="--c:#8b5cf6;--cd:#6d3fd8" data-result-action="mision">Ver la misión</button></div>`
           : '',
         onAction: (a) => { if (a === 'mision') openMission(u, ctx); },
+        confidence: (c) => {
+          state.progress.levels[level.id].conf = c;
+          if (c === 1) resetLevel(state.progress, level, today());
+          save();
+          const slipsTxt = `${r.mistakes} ${r.mistakes === 1 ? 'error' : 'errores'}${r.hints ? ` y ${r.hints} ${r.hints === 1 ? 'pista' : 'pistas'}` : ''}`;
+          if (c === 3 && (r.mistakes >= 3 || r.hints >= 3)) return `🧐 Ojo: te sentías muy seguro, pero tuviste **${slipsTxt}**. Es muy común sobreestimarse; por eso esos ejercicios **vuelven mañana** en tu repaso.`;
+          if (c === 1 && r.mistakes === 0) return '💪 ¡Lo hiciste **sin errores**! Sabes más de lo que crees. Igual todo el nivel vuelve **mañana** para fijarlo.';
+          if (c === 1) return '👍 Bien que lo reconozcas: **todo este nivel vuelve mañana** en tu repaso. Antes, relee el 🧠 "Para recordar" de la guía.';
+          if (c === 2) return '🔁 Mañana te aparece un repaso corto de este nivel. Lo que aciertes se espacia (2, 4, 7 días); lo que falles vuelve al día siguiente.';
+          return '😎 ¡Excelente! Mañana viene un repaso cortito para fijarlo, y después cada vez más espaciado (2, 4, 7 días).';
+        },
       };
     },
     onClose: () => { renderPath.scrolled = false; renderShell(); },
   });
 }
 
-function startReview() {
+/**
+ * Smart review: first what's due today in the spaced-repetition boxes (mistakes first, topics mixed);
+ * if nothing is due, a mixed practice of finished levels. mode = 'errors' reviews the error notebook.
+ */
+function startReview(mode = 'auto') {
   const crs = course();
-  const pool = crs.levels.filter((l) => lv(l.id)?.done).flatMap((l) => l.steps.filter((s) => s.t !== 'teoria'));
-  if (!pool.length) {
-    toast('Completa al menos un nivel para desbloquear el repaso 💪');
-    return;
+  const due = dueSteps(crs, state.progress, today());
+  let steps;
+  let title;
+  if (mode === 'errors') {
+    steps = interleave(mistakeSteps(crs, state.progress), 12);
+    title = 'Cuaderno de errores';
+    if (!steps.length) { toast('No tienes errores guardados. ¡Bien! 💪'); return; }
+  } else if (due.length) {
+    steps = interleave(due, 15);
+    title = `Repaso del día (${steps.length})`;
+  } else {
+    const pool = crs.levels.filter((l) => lv(l.id)?.done).flatMap((l) => l.steps.filter((s) => s.t !== 'teoria'));
+    if (!pool.length) {
+      toast('Completa al menos un nivel para desbloquear el repaso 💪');
+      return;
+    }
+    steps = interleave(shuffle(pool), 8);
+    title = 'Práctica mezclada';
+    toast('Hoy no tienes repasos pendientes: te armé una práctica mezclada 🔀');
   }
   runLesson({
-    title: 'Repaso',
+    title,
     color: PALETTE.purple,
-    steps: shuffle(pool).slice(0, 8),
+    steps,
     hearts: 5,
     onFinish: (r) => {
       recordAnswers(r);
@@ -748,7 +801,12 @@ function startReview() {
       state.progress.stats.reviews = (state.progress.stats.reviews || 0) + 1;
       awardXp(xp);
       save();
-      return { xp, stars: r.mistakes === 0 ? 3 : r.mistakes <= 2 ? 2 : 1 };
+      const left = dueSteps(crs, state.progress, today()).length;
+      return {
+        xp,
+        stars: r.mistakes === 0 ? 3 : r.mistakes <= 2 ? 2 : 1,
+        extraHtml: `<p style="color:var(--text-soft);margin:0">🔁 Lo que acertaste vuelve en unos días; lo que fallaste, mañana. ${left ? `Aún te quedan <b>${left}</b> para hoy.` : '¡Repaso del día completo!'}</p>`,
+      };
     },
     onClose: () => renderShell(),
   });
@@ -756,7 +814,7 @@ function startReview() {
 
 function startJump(crs, unitIndex) {
   const before = crs.units.slice(0, unitIndex);
-  const pool = before.flatMap((u) => u.levels.flatMap((l) => l.steps.filter((s) => s.t !== 'teoria' && s.t !== 'write')));
+  const pool = before.flatMap((u) => u.levels.flatMap((l) => l.steps.filter((s) => s.t !== 'teoria' && s.t !== 'write' && s.t !== 'explain')));
   const m = openModal(`
     <h2>⏩ Saltar a ${esc(crs.units[unitIndex].label)}</h2>
     <p style="color:var(--text-soft)">Responde 10 ejercicios de las unidades anteriores con <b>3 vidas</b>. Si apruebas, se desbloquea todo hasta aquí.</p>
@@ -784,6 +842,21 @@ function startJump(crs, unitIndex) {
   };
 }
 
+function showMethodIntro() {
+  const info = planInfo(course(), state.progress, today());
+  const m = openModal(`
+    <div style="text-align:center">${mascot('happy')}</div>
+    <h2 style="text-align:center;padding:0">Cómo aprender rápido con esta página</h2>
+    <p style="color:var(--text-soft);text-align:center">Está armada con las técnicas de estudio que más evidencia tienen. Solo sigue esta rutina cada día:</p>
+    ${routineHtml(info, 0, 0)}
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn" data-ok>¡Vamos!</button>
+    </div>`, { onClose: () => { state.progress.seenMethod = true; save(); } });
+  m.el.querySelector('.mascot').style.cssText = 'width:100px;height:100px';
+  bindRoutine(m.el, ctx);
+  m.el.querySelector('[data-ok]').onclick = m.close;
+}
+
 /* ---------------- Boot ---------------- */
 
 async function onUser(user) {
@@ -797,6 +870,7 @@ async function onUser(user) {
   setSound(state.progress.sound);
   renderPath.scrolled = false;
   renderShell();
+  if (!state.progress.seenMethod) showMethodIntro();
 }
 
 applyTheme();

@@ -100,6 +100,12 @@ export function hintsFor(step) {
       { title: '🧭 Qué debe cumplir', html: requirementList(step.checks) },
       fixed && { title: '🔤 Casi listo', html: `Las líneas corregidas se ven así:${pre(maskCode(fixed), lang)}` },
     ].filter(Boolean);
+  } else if (step.t === 'explain') {
+    const words = String(step.model).replace(/[*`]/g, '').split(/\s+/);
+    auto = [
+      { title: '🧭 Ideas que debes incluir', html: `Tu explicación debe mencionar:${requirementList(step.ideas.map(([, label]) => [null, label]))}` },
+      { title: '✍️ Empieza así', html: `<i>"${esc(words.slice(0, Math.min(9, Math.ceil(words.length / 3))).join(' '))}…"</i> y sigue con tus palabras.` },
+    ];
   } else if (step.t === 'output') {
     const lines = normalizeOutput(step.answer).split('\n');
     auto = [

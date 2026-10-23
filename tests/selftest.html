@@ -20,6 +20,8 @@
     import { checkMission, planInfo } from '../js/plan.js';
     import { MEMOS } from '../js/content/poo-memo.js';
     import { annotate } from '../js/glossary.js';
+    import { checkIdeas } from '../js/code.js';
+    import { recordResults, dueSteps } from '../js/srs.js';
 
     const problems = [];
     let count = 0;
@@ -42,6 +44,12 @@
             blanks.forEach((b) => b[1].split('|').forEach((a) => { if (!sameToken(a, a) || !a.trim()) problems.push([where, 'respuesta vacía']); }));
           }
           if (s.t === 'output' && !s.answer) problems.push([where, 'output sin respuesta']);
+          if (s.t === 'explain') {
+            const got = checkIdeas(s.model, s.ideas);
+            const need = s.min || s.ideas.length;
+            if (got.filter((g) => g.ok).length < need) problems.push([where, 'la respuesta modelo no pasa: ' + got.filter((g) => !g.ok).map((g) => g.label).join(' | ')]);
+            if (checkIdeas('no se, algo de java con clases y cosas varias', s.ideas).filter((g) => g.ok).length >= need) problems.push([where, 'acepta una respuesta vacía de contenido']);
+          }
           if (s.t !== 'teoria') {
             try {
               const hs = hintsFor(s);
@@ -78,6 +86,14 @@
         if (!card || !card.parts.some((p) => p && p.memo)) problems.push([l.id + ' · ' + l.title, 'nivel sin "Para recordar"']);
       });
       course.units.forEach((u) => { if (!u.links.length) problems.push([u.title, 'unidad sin recursos']); });
+      // Spaced repetition: right → later, wrong → tomorrow, due list works.
+      const sp = { levels: {} };
+      const [a, b] = course.levels[0].steps.filter((x) => x.t !== 'teoria');
+      recordResults(sp, [{ id: a.id, ok: true }, { id: b.id, ok: false }], '2026-10-22');
+      recordResults(sp, [{ id: a.id, ok: true }], '2026-10-23');
+      if (sp.srs[a.id].box !== 2 || sp.srs[a.id].due !== '2026-10-25' || sp.srs[b.id].due !== '2026-10-23' || sp.srs[b.id].wrong !== 1) problems.push(['srs', JSON.stringify(sp.srs)]);
+      if (dueSteps(course, sp, '2026-10-23').map((x) => x.id).join() !== b.id) problems.push(['srs', 'dueSteps incorrecto']);
+      if (course.levels.filter((l) => l.steps.some((x) => x.t === 'explain')).length < 15) problems.push(['explica', 'faltan ejercicios de explicación']);
       // The glossary must find terms in normal text and never inside code blocks.
       const probe = document.createElement('div');
       probe.innerHTML = '<p>El constructor de la clase usa this.</p><pre class="code">class constructor</pre>';

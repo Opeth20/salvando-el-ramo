@@ -4,6 +4,7 @@ import poo3 from './content/poo-3.js';
 import prueba1 from './content/poo-prueba.js';
 import { COACH, MISSIONS, EXAM, MATERIAL, RESOURCES } from './content/poo-extra.js';
 import { MEMOS } from './content/poo-memo.js';
+import { EXPLICA } from './content/poo-explica.js';
 
 export const PALETTE = {
   green: ['#58cc02', '#58a700'],
@@ -16,7 +17,7 @@ export const PALETTE = {
   yellow: ['#ffc800', '#e5a400'],
 };
 
-function build(course, { coach = [], missions = [], exam = null, material = [], resources = {}, memos = {} } = {}) {
+function build(course, { coach = [], missions = [], exam = null, material = [], resources = {}, memos = {}, explica = {} } = {}) {
   // Numbered units keep ids poo-u1..poo-u12 even when special units (with a `key`) are inserted between them.
   let n = 0;
   course.units.forEach((u, ui) => {
@@ -40,6 +41,9 @@ function build(course, { coach = [], missions = [], exam = null, material = [], 
       l.id = `${u.id}-l${li + 1}`;
       l.index = li;
       l.unit = u;
+      // "Explícalo con tus palabras" closes the level (generation + self-explanation).
+      const ex = explica[`${u.id}-l${li + 1}`];
+      if (ex && !l.steps.includes(ex)) l.steps.push(ex);
       l.steps.forEach((s, si) => { s.id = `${l.id}-s${si + 1}`; });
       // "Para recordar" goes at the end of the level's first concept card.
       const memo = memos[l.id];
@@ -48,6 +52,8 @@ function build(course, { coach = [], missions = [], exam = null, material = [], 
     });
   });
   course.levels = course.units.flatMap((u) => u.levels);
+  course.stepById = new Map();
+  course.levels.forEach((l) => l.steps.forEach((s) => { s.level = l; course.stepById.set(s.id, s); }));
   const examUnits = course.units.filter((u) => u.inExam);
   course.exam = exam && {
     ...exam,
@@ -75,7 +81,7 @@ export const COURSES = [
     color: 'green',
     // La Prueba 1 va después de "Colecciones y Gestor": usa todo lo de las unidades 4 a 8.
     units: [...poo1, ...poo2, prueba1, ...poo3],
-  }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL, resources: RESOURCES, memos: MEMOS }),
+  }, { coach: COACH, missions: MISSIONS, exam: EXAM, material: MATERIAL, resources: RESOURCES, memos: MEMOS, explica: EXPLICA }),
 ];
 
 // Ramos del semestre que aún no tienen contenido (inglés y antropología fuera, a pedido).

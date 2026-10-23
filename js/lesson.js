@@ -1,5 +1,5 @@
 // Lesson runner: shows steps one by one, checks answers, tracks hearts, and shows the result screen.
-import { esc, highlight, runChecks, bracketProblem, sameToken, normalizeOutput } from './code.js';
+import { esc, highlight, runChecks, bracketProblem, sameToken, normalizeOutput, checkIdeas } from './code.js';
 import { createEditor } from './editor.js';
 import { mascot, play, confetti } from './fx.js';
 import { md, codeBlock, theoryHtml, openModal, toast, enrich, tutorButton } from './ui.js';
@@ -16,6 +16,7 @@ const KIND = {
   write: ['⌨️', 'Escribe el código', ''],
   fix: ['🐛', 'Encuentra y corrige el error', ''],
   output: ['🖥️', '¿Qué imprime?', ''],
+  explain: ['🗣️', 'Explícalo con tus palabras', 'new'],
 };
 
 const SNIPPETS = {
@@ -222,7 +223,38 @@ function renderOutput(step, host, ctx) {
   };
 }
 
-const RENDERERS = { teoria: renderTeoria, fill: renderFill, line: renderLine, write: renderEditorStep, fix: renderEditorStep, output: renderOutput };
+function renderExplain(step, host, ctx) {
+  host.innerHTML = `<textarea class="answer-box" spellcheck="true" style="font-family:var(--font);font-weight:700;min-height:130px"
+      placeholder="Explícalo como si se lo contaras a un compañero que faltó a clases…" aria-label="Tu explicación"></textarea>
+    <span class="kbd">Ctrl + Enter para comprobar · No hay una única respuesta correcta: se revisan las ideas clave</span>
+    <div class="extra"></div>`;
+  const ta = host.querySelector('textarea');
+  const extra = host.querySelector('.extra');
+  let changeCb = () => {};
+  ta.addEventListener('input', () => { ta.classList.remove('ok', 'bad'); changeCb(); });
+  ta.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && ctx.isChecking()) { e.preventDefault(); e.stopPropagation(); ctx.submit(); }
+  });
+  return {
+    canCheck: () => !!ta.value.trim(),
+    focus: () => ta.focus(),
+    onChange: (cb) => { changeCb = cb; },
+    check() {
+      if (ta.value.trim().split(/\s+/).length < 6) return { warn: 'Escribe al menos una o dos frases completas: explicarlo con tus palabras es lo que lo fija en la memoria.' };
+      const items = checkIdeas(ta.value, step.ideas);
+      const okCount = items.filter((i) => i.ok).length;
+      const need = step.min || step.ideas.length;
+      const ok = okCount >= need;
+      ta.classList.toggle('ok', ok);
+      ta.classList.toggle('bad', !ok);
+      extra.innerHTML = checklistHtml(items);
+      return ok ? { ok: true } : { ok: false, message: `Tu explicación tiene ${okCount} de las ${need} ideas clave. Revisa la lista ✕ y agrega lo que falta.` };
+    },
+    solutionHtml: () => `<div class="hint-box" style="background:transparent">${md(step.model)}</div>`,
+  };
+}
+
+const RENDERERS = { explain: renderExplain, teoria: renderTeoria, fill: renderFill, line: renderLine, write: renderEditorStep, fix: renderEditorStep, output: renderOutput };
 
 /* ---------------- Runner ---------------- */
 
@@ -265,6 +297,7 @@ export function runLesson(opts) {
   let firstTry = 0;
   let answered = 0;
   let hintsUsed = 0;
+  const results = new Map(); // stepId -> { id, ok, hinted } (first try only)
   let combo = 0;
   let current = null;
   let ctrl = null;
@@ -328,6 +361,7 @@ export function runLesson(opts) {
     btn.onclick = () => {
       const h = hints[shown++];
       hintsUsed++;
+      current.hints = (current.hints || 0) + 1;
       list.insertAdjacentHTML('beforeend', `<div class="hint-box"><b>${h.title}</b><div>${h.html}</div></div>`);
       enrich(list.lastElementChild);
       label();
@@ -397,6 +431,7 @@ export function runLesson(opts) {
       play('ok');
       if (current.tries === 0 && !current.sawSolution) { firstTry++; combo++; } else combo = 0;
       answered++;
+      if (!results.has(s.id)) results.set(s.id, { id: s.id, ok: current.tries === 0 && !current.sawSolution, hinted: !!current.hints });
       completed++;
       setProgress();
       if (combo >= 3 && !exam) showCombo(combo);
@@ -404,6 +439,7 @@ export function runLesson(opts) {
       setFoot('ok', `<div class="feedback"><div class="fb-ico">${pick(['🎉', '✨', '🙌', '💪', '🚀'])}</div><div>
           <h3>${pick(PRAISE)}</h3>
           ${s.explain ? `<div class="fb-text">${md(s.explain)}</div>` : ''}
+          ${s.t === 'explain' ? `<div class="fb-text"><b>Así lo diría un profe:</b> ${md(s.model)}</div>` : ''}
           ${exam ? '' : copyButtonHtml(s)}${s.t === 'output' ? tutorButton(s.code, 'java', '👀 Mira cómo se ejecuta, paso a paso') : ''}</div></div>
         <div class="foot-actions"><button class="btn" data-primary>Continuar</button></div>`);
       bindPrimary(next);
@@ -416,6 +452,7 @@ export function runLesson(opts) {
     current.tries++;
     mistakes++;
     combo = 0;
+    if (!results.has(s.id)) results.set(s.id, { id: s.id, ok: false, hinted: !!current.hints });
     if (exam) {
       answered++;
       completed++;
@@ -485,7 +522,7 @@ export function runLesson(opts) {
   }
 
   function finish() {
-    const r = { passed: true, mistakes, firstTry, answered, hints: hintsUsed, total };
+    const r = { passed: true, mistakes, firstTry, answered, hints: hintsUsed, total, results: [...results.values()] };
     const result = (onFinish && onFinish(r)) || { xp: 0, stars: 3 };
     play('win');
     if (!exam || (result.grade && result.grade >= 4)) confetti();
@@ -508,11 +545,20 @@ export function runLesson(opts) {
         ${exam ? '' : `<div class="result-stars">${[1, 2, 3].map((i) => `<span class="${i <= result.stars ? '' : 'off'}">⭐</span>`).join('')}</div>`}
         <div class="result-cards">${cards}</div>
         ${!exam && hintsUsed ? `<p style="color:var(--text-soft);margin:0">💡 Usaste ${hintsUsed} ${hintsUsed === 1 ? 'pista' : 'pistas'}. ¡Bien por pedir ayuda! La próxima intenta con menos.</p>` : ''}
+        ${result.confidence ? `<div class="conf"><b>¿Qué tan claro te quedó?</b>
+          <div class="conf-btns"><button class="chip" data-conf="1">😕 Poco</button><button class="chip" data-conf="2">🙂 Más o menos</button><button class="chip" data-conf="3">😎 Muy claro</button></div>
+          <div class="conf-msg"></div></div>` : ''}
         ${result.extraHtml || ''}
       </div>`;
     root.querySelector('.lesson-top').style.visibility = 'hidden';
     setFoot('result', '<div></div><div class="foot-actions"><button class="btn" data-primary>Continuar</button></div>');
     bindPrimary(close);
+    $ex.querySelectorAll('[data-conf]').forEach((b) => {
+      b.onclick = () => {
+        $ex.querySelectorAll('[data-conf]').forEach((x) => { x.disabled = true; x.classList.toggle('picked', x === b); });
+        $ex.querySelector('.conf-msg').innerHTML = md(result.confidence(+b.dataset.conf) || '');
+      };
+    });
     $ex.querySelectorAll('[data-result-action]').forEach((b) => {
       b.onclick = () => { close(); result.onAction && result.onAction(b.dataset.resultAction); };
     });
@@ -520,7 +566,7 @@ export function runLesson(opts) {
 
   function showFail() {
     play('lose');
-    if (onFinish) onFinish({ passed: false, mistakes, firstTry, answered, hints: hintsUsed, total });
+    if (onFinish) onFinish({ passed: false, mistakes, firstTry, answered, hints: hintsUsed, total, results: [...results.values()] });
     $ex.innerHTML = `
       <div class="result fail">
         ${mascot('sad')}
