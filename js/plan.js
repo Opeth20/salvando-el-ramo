@@ -170,7 +170,7 @@ export function openMission(unit, ctx) {
     <div class="ex-kind new" style="margin-bottom:4px">🧪 Misión real · ${esc(unit.label)} · +30 XP</div>
     <h2>${esc(m.title)}</h2>
     <p style="color:var(--text-soft);margin:6px 0 0">${md(m.intro)}</p>
-    <div class="hint-box" style="border-color:var(--purple);background:transparent">💻 Esto se hace en <b>IntelliJ IDEA</b> (o NetBeans), no aquí. Programar en un IDE real es lo que te piden en la prueba: ¡el error que veas ahí es el que aprendes!</div>
+    <div class="hint-box" style="border-color:var(--purple);background:transparent">💻 Esto se hace en <b>IntelliJ IDEA</b>, no aquí. Ejecútalo con el <b>▶ verde</b> junto a <code>main</code>. Programar en un IDE real es lo que te piden en la prueba: ¡el error que veas ahí es el que aprendes!</div>
     <ol class="mission-steps">${m.steps.map((s, i) => `<li><input type="checkbox" data-step="${i}" ${ticks[i] || done ? 'checked' : ''} aria-label="Paso ${i + 1}"><span><b>${i + 1}.</b> ${md(s)}</span></li>`).join('')}</ol>
     ${(m.files || []).map((f, i) => `<div class="file-head"><span>📄 ${esc(f.name)}</span><button class="chip" data-copyfile="${i}">📋 Copiar</button></div><pre class="code">${highlight(f.code, f.lang || 'java')}</pre>`).join('')}
     ${m.note ? `<div class="theory"><div class="warn">💡 ${md(m.note)}</div></div>` : ''}
@@ -295,7 +295,7 @@ export function renderPlan(main, ctx) {
         const d = pu.levels.filter((l) => lv(l.id)?.done).length;
         return `<div class="panel" style="margin-bottom:16px;border-color:var(--yellow)">
           <h3>📋 Cómo hacer la prueba <span class="status-pill done">${d}/${pu.levels.length} niveles</span></h3>
-          <p style="margin-bottom:12px">El método de tu Prueba 1 (Resumen_Prueba): tabla del enunciado → 5 moldes → tabla de datos → NetBeans y entrega. Léelo antes de cada simulacro.</p>
+          <p style="margin-bottom:12px">El método de tu Prueba 1 (Resumen_Prueba): tabla del enunciado → 5 moldes → tabla de datos → IntelliJ y entrega. Léelo antes de cada simulacro.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn yellow small" data-howto>Ver el método</button>
             <button class="btn ghost small" data-howto-go>Practicarlo</button>

@@ -19,6 +19,17 @@ export default [
 <li>\`String[] args\`: argumentos de la línea de comandos.</li>
 </ul>
 <div class="tip">📛 Convención: clases en **PascalCase** (\`MiPrimerJava\`) y variables en **camelCase** (\`nombrePersona\`).</div>`),
+      teoria('Tu editor: IntelliJ IDEA',
+        'En el ramo (y en las próximas pruebas) se programa en **IntelliJ IDEA**. Lo básico para no perderte:',
+        `<table><tr><th>Quiero…</th><th>En IntelliJ</th></tr>
+<tr><td>Crear un proyecto</td><td><b>File → New → Project → Java</b> → nombre → Create</td></tr>
+<tr><td>Crear una clase</td><td>Clic derecho en <code>src</code> → <b>New → Java Class</b></td></tr>
+<tr><td>Ejecutar</td><td>El <b>▶ verde</b> al lado de <code>main</code> (o <b>Shift + F10</b>)</td></tr>
+<tr><td>Ver lo que imprime</td><td>La ventana <b>Run</b> abajo (la consola)</td></tr>
+<tr><td>Generar constructor / getters / setters / toString</td><td><b>Alt + Insert</b></td></tr>
+<tr><td>Arreglar algo en rojo</td><td>Pon el cursor encima y <b>Alt + Enter</b></td></tr>
+<tr><td>Ordenar la indentación</td><td><b>Ctrl + Alt + L</b></td></tr></table>
+<div class="tip">💡 Escribe <code>psvm</code> + Tab y IntelliJ escribe el <code>main</code> completo. <code>sout</code> + Tab escribe <code>System.out.println();</code></div>`),
       fill('Completa la firma del método principal y la instrucción que imprime con salto de línea.',
         `public class MiPrimerJava {
     public [[static]] void [[main]](String[] args) {

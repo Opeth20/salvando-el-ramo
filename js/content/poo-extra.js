@@ -89,7 +89,7 @@ export const COACH = [
   },
 ];
 
-const IDE_START = 'Abre **IntelliJ IDEA** (o NetBeans) → **New Project** → **Java** → ponle el nombre indicado → Create.';
+const IDE_START = 'Abre **IntelliJ IDEA** → **New Project** → **Java** → ponle el nombre indicado → Create.';
 
 export const MISSIONS = [
   /* 1 */ {

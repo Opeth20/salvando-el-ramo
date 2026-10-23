@@ -486,7 +486,7 @@ public void mostrarCostos() {
       ],
       solution: PETCARE_MAIN,
     }),
-    out('Corre el main del ejercicio anterior en tu cabeza (o en NetBeans). ¿Qué imprime?',
+    out('Corre el main del ejercicio anterior en tu cabeza (o en IntelliJ). ¿Qué imprime?',
       PETCARE_MAIN.split('\n').slice(2, -2).map((l) => l.replace(/^ {8}/, '')).join('\n'),
       'Registrado correctamente: Rocky\nRegistrado correctamente: Toby\nRegistrado correctamente: Luna\nPaciente: 3 - Luna\nNo se encontró: 9\nPaciente: 1 - Rocky\nPaciente: 2 - Toby\nPaciente: 3 - Luna\nRocky: $19500.0\nToby: $15000.0\nLuna: $14400.0',
       { explain: 'Esto es exactamente lo que tienes que ver en la consola. Si tus números dan igual que tu cálculo a mano, está listo para entregar.' }),
@@ -495,7 +495,7 @@ public void mostrarCostos() {
   level('Errores que bajan puntos', '🚑', [
     teoria('Checklist antes de entregar',
       `<ul>
-<li>☐ ¿Compila? (sin rojo en NetBeans)</li>
+<li>☐ ¿Compila? (nada subrayado en rojo en IntelliJ)</li>
 <li>☐ ¿El constructor del padre usa <b>setters</b> y no \`this.x = x\`?</li>
 <li>☐ ¿Cada setter con regla tiene su \`if\` + \`throw new IllegalArgumentException\`?</li>
 <li>☐ ¿\`super(...)\` es la <b>primera línea</b> en cada hija?</li>
@@ -506,11 +506,15 @@ public void mostrarCostos() {
 <li>☐ ¿Los \`new\` del main respetan el <b>orden del constructor</b>?</li>
 <li>☐ ¿Los costos de la consola coinciden con tu cálculo a mano?</li>
 </ul>`,
-      `<table><tr><th>NetBeans</th><th>Hace</th></tr>
-<tr><td><b>Alt + Insert</b></td><td>Genera constructor, getters/setters y toString</td></tr>
-<tr><td><b>Alt + Enter</b></td><td>Implementa los métodos de la interfaz / abstractos</td></tr>
-<tr><td><b>Shift + F6</b></td><td>Ejecuta el archivo actual</td></tr>
-<tr><td>File → Export Project → <b>To ZIP</b></td><td>Genera <code>Nombre_Apellido.zip</code> para subir a AVA</td></tr></table>`),
+      `<table><tr><th>IntelliJ IDEA</th><th>Hace</th></tr>
+<tr><td><b>Alt + Insert</b></td><td>Genera constructor, getters/setters y toString (el menú "Generate")</td></tr>
+<tr><td><b>Ctrl + I</b></td><td>Implementa los métodos de la interfaz / abstractos</td></tr>
+<tr><td><b>Ctrl + O</b></td><td>Sobrescribe un método del padre (pone el @Override solo)</td></tr>
+<tr><td><b>Alt + Enter</b></td><td>"Arréglalo por mí": sobre algo en rojo te ofrece la solución (importar, implementar, crear…)</td></tr>
+<tr><td><b>▶ verde</b> junto a <code>main</code> (o <b>Shift + F10</b>)</td><td>Ejecuta el programa</td></tr>
+<tr><td><b>Ctrl + Alt + L</b></td><td>Ordena la indentación del código</td></tr>
+<tr><td>File → Export → <b>Project to Zip File</b></td><td>Genera <code>Nombre_Apellido.zip</code> para subir a AVA</td></tr></table>
+<div class="warn">⚠️ En IntelliJ <b>Shift + F6 es "Renombrar"</b>, no ejecutar (en NetBeans era distinto). Si tu versión no tiene "Project to Zip File", cierra IntelliJ, ve a la carpeta del proyecto en Windows → clic derecho → <b>Comprimir en archivo ZIP</b>.</div>`),
     fix('El main no compila: la fila era `| Auto | ABCD12 | 2020 | 45000 | 4 | Manual |` y el constructor es `Auto(String patente, int anio, int kilometraje, int numeroPuertas, String tipoTransmision)`.', {
       starter: `Auto a1 = new Auto("ABCD12", 2020, 45000, "Manual", 4);`,
       checks: [['Auto a1=new Auto("ABCD12",2020,45000,4,"Manual");', 'new Auto("ABCD12", 2020, 45000, 4, "Manual") en el orden del constructor']],
@@ -567,11 +571,12 @@ public double calcularCostoMantenimiento() {
     return 50000;
 }`,
     }),
-    fill('Paso 4: NetBeans y entrega.',
+    fill('Paso 4: IntelliJ y entrega. Escribe el atajo de cada acción.',
       `// Generar constructor, getters/setters y toString:  [[Alt+Insert]]
-// Implementar los métodos de la interfaz:            [[Alt+Enter]]
-// Ejecutar el archivo:                               [[Shift+F6]]
-// Entregar: File → Export Project → To [[ZIP]] → Nombre_Apellido.zip → subir a AVA`, { lang: 'text' }),
+// Implementar los métodos de la interfaz:            [[Ctrl+I]]
+// Arreglar lo que está en rojo (sugerencias):        [[Alt+Enter]]
+// Ejecutar el programa:                              [[Shift+F10]]
+// Entregar: File → Export → Project to [[Zip]] File → Nombre_Apellido.zip → subir a AVA`, { lang: 'text', explain: 'Ojo: en IntelliJ **Shift + F6** renombra; para ejecutar es **Shift + F10** o el ▶ verde al lado de `main`.' }),
   ], { boss: true }),
 ]);
 
@@ -584,15 +589,15 @@ export default {
     exam: ['Primero la tabla de corchetes con lápiz (10 min).', 'Moldes en orden ① → ⑤; si te trabas, avanza al siguiente.', 'Antes de entregar: checklist + comparar los costos con tu cálculo a mano.'],
   },
   mision: {
-    title: 'Prueba 1 contra el reloj: PetCare en NetBeans',
+    title: 'Prueba 1 contra el reloj: PetCare en IntelliJ',
     intro: 'Haz la prueba completa como si fuera el día de la evaluación. Pon un cronómetro de **90 minutos**.',
     steps: [
-      'Abre NetBeans (o IntelliJ) → New Project → Java Application → nombre `PetCare`.',
+      'Abre **IntelliJ IDEA** → **New Project** → **Java** → nombre `PetCare` → Create.',
       'Paso 1: con lápiz y papel llena la tabla de corchetes con el enunciado de la unidad (está en la 📖 Guía).',
       'Paso 2: escribe los moldes en orden: ① `Vacunable` → ② `Paciente` (con validaciones y toString) → ③ `Perro` y `Gato` → ④ `Clinica`.',
-      '⑤ Usa el `Main` de abajo (o escríbelo tú desde la tabla de datos) y ejecuta con **Shift + F6**.',
+      '⑤ Usa el `Main` de abajo (o escríbelo tú desde la tabla de datos) y ejecútalo con el **▶ verde** junto a `main` (o **Shift + F10**). Usa **Alt + Insert** para generar getters/setters y **Ctrl + I** para implementar la interfaz.',
       'Revisa el checklist de "Errores que bajan puntos" y compara los costos con tu cálculo a mano.',
-      'Practica la entrega: File → Export Project → To ZIP. Pega la consola aquí.',
+      'Practica la entrega: **File → Export → Project to Zip File**. Pega la consola aquí.',
     ],
     files: [{ name: 'Main.java', code: PETCARE_MAIN }],
     expect: [
